@@ -1,0 +1,111 @@
+WINSNAP(1)                General Commands Manual               WINSNAP(1)
+
+NAME
+     winsnap — nine-position window snapping for GNOME Shell
+
+SYNOPSIS
+     make install
+     make enable
+     make live
+
+DESCRIPTION
+     winsnap tiles the focused window into one of nine rectangles on its
+     monitor's work area: vertical halves (left, right), horizontal
+     halves (up, down), four quarters, and the full work area
+     (maximize), plus minimize.  Pressing a position key a second time
+     restores the window's previous geometry; pressing maximize twice
+     restores as well.
+
+     Fullscreen windows are left alone.  Dialogs and other non-normal
+     windows are left alone.
+
+     If a shortcut collides with a built-in GNOME shortcut (the stock
+     Super+arrow tiling, maximize, minimize), the built-in one is
+     disabled while winsnap is enabled and restored afterwards.  No
+     other part of the GNOME configuration is ever modified.
+
+KEYBINDINGS
+     Defaults follow the well-known Super+arrow layout; halves and
+     quarters follow the numpad compass.  All eleven are configurable
+     in the settings dialog (Extensions → winsnap) or with gsettings(1):
+
+           <Super>Left              left half
+           <Super>Right             right half
+           <Super>KP_8              top half
+           <Super>KP_2              bottom half
+           <Super>KP_7              top-left quarter
+           <Super>KP_9              top-right quarter
+           <Super>KP_1              bottom-left quarter
+           <Super>KP_3              bottom-right quarter
+           <Super>Up                maximize
+           <Super>Down              restore (unmaximize, float centered)
+           <Super>h                 minimize
+
+     Laptops without a numpad may prefer, say,
+     <Super><Ctrl>Left/Up/Right/Down for the quarters.  The schema
+     lives with the extension, so gsettings needs --schemadir:
+
+           gsettings --schemadir \
+               ~/.local/share/gnome-shell/extensions/winsnap@apiratchai/schemas \
+               set org.gnome.shell.extensions.winsnap \
+               snap-top-left '<Super><Ctrl>Left'
+
+     Set a key to the empty array to disable that shortcut.
+
+     Each action accepts several accelerators.  The settings dialog
+     adds to the list; to remove individual ones or set several at
+     once, use gsettings:
+
+           gsettings --schemadir \
+               ~/.local/share/gnome-shell/extensions/winsnap@apiratchai/schemas \
+               set org.gnome.shell.extensions.winsnap snap-down \
+               "['<Super>Down', '<Super>2']"
+
+     A rebinding that collides with a built-in shortcut (for example
+     <Super>2, the app switcher) disables that built-in for as long as
+     winsnap is enabled.
+
+D-BUS
+     The extension exports the interface org.gnome.Shell.Extensions.Winsnap
+     on the session bus at /org/gnome/shell/extensions/winsnap (under the
+     shell's own bus name), so windows can be tiled from scripts:
+
+           SnapWindow(title, position)        -> found
+           MoveWindow(title, x, y, w, h)      -> found
+           GetWindowRect(title)               -> "x y w h" | gone
+           GetWindowState(title)              -> normal|minimized|maximized|fullscreen|gone
+           GetMonitorWorkArea(title)          -> "x y w h" | gone
+           SetFullscreen(title, full)         -> found
+           GetMonitors()                      -> count
+
+     Position is one of left, right, up, down, top_left, top_right,
+     bottom_left, bottom_right, maximize, minimize.  tests/test.sh
+     drives the same interface.
+
+FILES
+     ~/.local/share/gnome-shell/extensions/winsnap@apiratchai/
+
+TESTING
+     make unit   — geometry checks, no shell needed
+     make live   — live tests against the running shell (spawns ptyxis
+                   and zenity windows; the extension must be enabled)
+
+LIMITATIONS
+     The shell scans for extensions only at session start; a new
+     install needs a log out and back in.
+
+     tiling-assistant@leleat-on-github and other tiling extensions
+     grab the same keys; disable them (gnome-extensions disable
+     tiling-assistant@leleat-on-github) or rebind winsnap.
+
+     GNOME 50 has no programmatic way to simulate key presses from
+     outside the shell, so the live suite verifies the snap geometry
+     and state transitions, not the key grab itself.
+
+BUGS
+     Report to the author.  Windows tiled by drag-and-drop keep a tile
+     constraint; snapping them away with winsnap works, but GNOME may
+     re-assert the constraint on later resizes.  This is a mutter
+     behaviour we do not fight.
+
+WINSNAP(1)                General Commands Manual               WINSNAP(1)

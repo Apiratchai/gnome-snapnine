@@ -1,0 +1,55 @@
+# winsnap -- nine-position window snapping for GNOME Shell
+#
+#	make install	install for the current user
+#	make uninstall	remove
+#	make enable	enable in the running session
+#	make disable	disable
+#	make unit	geometry unit tests (no shell needed)
+#	make live	live integration tests (extension must be enabled)
+#	make help	this text
+
+UUID    = winsnap@apiratchai
+EXTDIR  = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
+SCHEMA  = org.gnome.shell.extensions.winsnap
+
+FILES   = metadata.json extension.js rect.js prefs.js
+
+.PHONY: install uninstall enable disable unit live zip help
+
+zip:
+	rm -f winsnap.zip
+	mkdir -p /tmp/winsnap-zip/schemas
+	cp $(FILES) /tmp/winsnap-zip/
+	cp schemas/$(SCHEMA).gschema.xml /tmp/winsnap-zip/schemas/
+	cd /tmp/winsnap-zip && zip -qr "$$(pwd)/winsnap.zip" .
+	rm -rf /tmp/winsnap-zip
+	@echo "winsnap.zip ready: gnome-extensions install winsnap.zip"
+
+install:
+	mkdir -p $(EXTDIR)/schemas
+	cp $(FILES) $(EXTDIR)/
+	cp schemas/$(SCHEMA).gschema.xml $(EXTDIR)/schemas/
+	glib-compile-schemas $(EXTDIR)/schemas
+	@echo "installed in $(EXTDIR)"
+	@echo "the shell only scans extensions at startup: log out and back in,"
+	@echo "or run: make enable"
+
+uninstall:
+	gnome-extensions disable $(UUID) 2>/dev/null || true
+	rm -rf $(EXTDIR)
+	@echo "removed"
+
+enable:
+	gnome-extensions enable $(UUID)
+
+disable:
+	gnome-extensions disable $(UUID)
+
+unit:
+	gjs -m tests/unit.js
+
+live:
+	sh tests/test.sh
+
+help:
+	@sed -n '2,11p' Makefile
