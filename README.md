@@ -33,11 +33,19 @@ position key again restores the previous geometry.
 
 ## Why this exists
 
-Inspired by Tiling Assistant, which I used for two years. It is a good
-extension. It has one bug I could not live with: snap a freshly opened
-Firefox window and it lands in the middle of the screen instead of
-where you pointed it, and you have to press the key two or three
-times. The issue is still open in their tracker (#421).
+Inspired by [Tiling Assistant](https://github.com/ubuntu/Tiling-Assistant),
+which I used for two years. It is a good extension. It has one bug I
+could not live with: snap a freshly opened Firefox window and it lands
+in the middle of the screen instead of where you pointed it, and you
+have to press the key two or three times.
+
+The symptom was reported against Tiling Assistant as
+[issue #421](https://github.com/ubuntu/Tiling-Assistant/issues/421),
+filed by their user jumbled00r. That user is not me; I only suspect we
+share the same issue. The issue was still open when this extension was
+written. A similar report exists for KWin
+([KDE bug 473594](https://bugs.kde.org/show_bug.cgi?id=473594)), so
+the cause is not specific to GNOME.
 
 The cause, in plain words: on Wayland the app controls its own window
 size. Firefox opens a window, then loads content and resizes itself a

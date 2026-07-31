@@ -270,9 +270,13 @@ export default class SnapnineExtension extends Extension {
     // Freshly created windows race their initial placement: mutter
     // applies the client's first geometry on the first frame, and any
     // move we apply before that is overridden -- the window ends up
-    // "neutral" in the center (tiling-assistant issue #421, and a
-    // known Firefox-on-Wayland behaviour).  For fresh windows, wait
-    // for the geometry to settle, then move.
+    // "neutral" in the center.  Same symptom reported against
+    // tiling-assistant (https://github.com/ubuntu/Tiling-Assistant,
+    // issue #421: https://github.com/ubuntu/Tiling-Assistant/issues/421,
+    // filed by their user jumbled00r; that user is not us, we only
+    // suspect the same issue).  Also a known Firefox-on-Wayland
+    // behaviour.  For fresh windows, wait for the geometry to settle,
+    // then move.
     //
     // On Wayland the client is authoritative for its own size: a late
     // client resize (session restore, content load) can override our
