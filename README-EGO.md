@@ -6,6 +6,20 @@ plus **restore** (float centered) and **minimize**.  Every action has
 its own keybinding, and every action accepts **several accelerators**
 at once.
 
+## Designed for the numpad
+
+The nine positions map onto the numpad as a compass:
+
+```
+  7 8 9      top-left   top-half    top-right
+  4 5 6      left       maximize    right
+  1 2 3      bottom-left bottom-half bottom-right
+```
+
+No numpad?  Bind anything you like — the layout is data-driven (one
+array in `rect.js`), and adding new positions later is a two-line
+change.
+
 ## Default keybindings
 
 | Action            | Default         |
@@ -39,7 +53,7 @@ geometry.
 * **Tested.**  28 geometry unit tests run with plain `gjs`; a live
   suite drives real windows over D-Bus and presses real keys through
   uinput.
-* **Scriptable.**  Exports `org.gnome.Shell.Extensions.Winsnap` on the
+* **Scriptable.**  Exports `org.gnome.Shell.Extensions.Snapnine` on the
   session bus, so windows can be tiled from scripts.
 
 ## Install
