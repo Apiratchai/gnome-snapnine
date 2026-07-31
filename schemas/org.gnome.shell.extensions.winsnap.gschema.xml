@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <!--
+      Keybinding keys are string arrays ('as'), like every GNOME
+      keybinding schema.  mutter reads them with g_settings_get_strv(),
+      which returns NULL for plain string keys -- a binding registered
+      with no accelerators can never fire.
+  -->
+  <schema id="org.gnome.shell.extensions.winsnap"
+          path="/org/gnome/shell/extensions/winsnap/">
+    <key name="snap-left" type="as">
+      <default><![CDATA[['<Super>Left']]]></default>
+      <summary>Snap to left half</summary>
+      <description>Move and resize the focused window to the left half of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-right" type="as">
+      <default><![CDATA[['<Super>Right']]]></default>
+      <summary>Snap to right half</summary>
+      <description>Move and resize the focused window to the right half of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-up" type="as">
+      <default><![CDATA[['<Super>KP_8']]]></default>
+      <summary>Snap to top half</summary>
+      <description>Move and resize the focused window to the top half of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-down" type="as">
+      <default><![CDATA[['<Super>KP_2']]]></default>
+      <summary>Snap to bottom half</summary>
+      <description>Move and resize the focused window to the bottom half of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-top-left" type="as">
+      <default><![CDATA[['<Super>KP_7']]]></default>
+      <summary>Snap to top-left quarter</summary>
+      <description>Move and resize the focused window to the top-left quarter of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-top-right" type="as">
+      <default><![CDATA[['<Super>KP_9']]]></default>
+      <summary>Snap to top-right quarter</summary>
+      <description>Move and resize the focused window to the top-right quarter of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-bottom-left" type="as">
+      <default><![CDATA[['<Super>KP_1']]]></default>
+      <summary>Snap to bottom-left quarter</summary>
+      <description>Move and resize the focused window to the bottom-left quarter of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-bottom-right" type="as">
+      <default><![CDATA[['<Super>KP_3']]]></default>
+      <summary>Snap to bottom-right quarter</summary>
+      <description>Move and resize the focused window to the bottom-right quarter of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-maximize" type="as">
+      <default><![CDATA[['<Super>Up']]]></default>
+      <summary>Maximize</summary>
+      <description>Maximize the focused window.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-restore" type="as">
+      <default><![CDATA[['<Super>Down']]]></default>
+      <summary>Restore</summary>
+      <description>Unmaximize the focused window and float it centered at 3/5 x 4/5 of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-minimize" type="as">
+      <default><![CDATA[['<Super>h']]]></default>
+      <summary>Minimize</summary>
+      <description>Minimize the focused window.  An empty array disables the shortcut.</description>
+    </key>
+  </schema>
+</schemalist>

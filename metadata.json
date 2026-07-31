@@ -1,0 +1,8 @@
+{
+    "uuid": "winsnap@apiratchai",
+    "name": "winsnap",
+    "description": "Nine-position window snapping: halves, quarters, maximize, minimize. Configurable keybindings.",
+    "shell-version": ["50"],
+    "settings-schema": "org.gnome.shell.extensions.winsnap",
+    "version": 7
+}
