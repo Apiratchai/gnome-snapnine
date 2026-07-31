@@ -17,7 +17,7 @@ set -u
 DEST=org.gnome.Shell
 IFACE=org.gnome.Shell.Extensions.Snapnine
 PATH_=/org/gnome/shell/extensions/snapnine
-EXT=snapnine@apiratchai
+EXT=snapnine@github
 EXTDIR=$HOME/.local/share/gnome-shell/extensions/$EXT
 # our schema lives with the extension; the shell finds it, plain gsettings does not
 GS="gsettings --schemadir $EXTDIR/schemas"

@@ -89,5 +89,5 @@ startup). After login, enable it if it did not enable itself:
 
     make enable
 
-To remove: `gnome-extensions disable snapnine@apiratchai`, then delete
-the folder ~/.local/share/gnome-shell/extensions/snapnine@apiratchai.
+To remove: `gnome-extensions disable snapnine@github`, then delete
+the folder ~/.local/share/gnome-shell/extensions/snapnine@github.

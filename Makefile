@@ -8,7 +8,7 @@
 #	make live	live integration tests (extension must be enabled)
 #	make help	this text
 
-UUID    = snapnine@apiratchai
+UUID    = snapnine@github
 EXTDIR  = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 SCHEMA  = org.gnome.shell.extensions.snapnine
 

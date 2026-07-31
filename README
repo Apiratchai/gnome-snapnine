@@ -46,7 +46,7 @@ KEYBINDINGS
      lives with the extension, so gsettings needs --schemadir:
 
            gsettings --schemadir \
-               ~/.local/share/gnome-shell/extensions/snapnine@apiratchai/schemas \
+               ~/.local/share/gnome-shell/extensions/snapnine@github/schemas \
                set org.gnome.shell.extensions.snapnine \
                snap-top-left '<Super><Ctrl>Left'
 
@@ -57,7 +57,7 @@ KEYBINDINGS
      once, use gsettings:
 
            gsettings --schemadir \
-               ~/.local/share/gnome-shell/extensions/snapnine@apiratchai/schemas \
+               ~/.local/share/gnome-shell/extensions/snapnine@github/schemas \
                set org.gnome.shell.extensions.snapnine snap-down \
                "['<Super>Down', '<Super>2']"
 
@@ -83,7 +83,7 @@ D-BUS
      drives the same interface.
 
 FILES
-     ~/.local/share/gnome-shell/extensions/snapnine@apiratchai/
+     ~/.local/share/gnome-shell/extensions/snapnine@github/
 
 TESTING
      make unit   — geometry checks, no shell needed
