@@ -9,12 +9,12 @@
   <schema id="org.gnome.shell.extensions.snapnine"
           path="/org/gnome/shell/extensions/snapnine/">
     <key name="snap-left" type="as">
-      <default><![CDATA[['<Super>Left']]]></default>
+      <default><![CDATA[['<Super>Left', '<Super>KP_4']]]></default>
       <summary>Snap to left half</summary>
       <description>Move and resize the focused window to the left half of the work area.  An empty array disables the shortcut.</description>
     </key>
     <key name="snap-right" type="as">
-      <default><![CDATA[['<Super>Right']]]></default>
+      <default><![CDATA[['<Super>Right', '<Super>KP_6']]]></default>
       <summary>Snap to right half</summary>
       <description>Move and resize the focused window to the right half of the work area.  An empty array disables the shortcut.</description>
     </key>

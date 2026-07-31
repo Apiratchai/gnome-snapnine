@@ -4,5 +4,5 @@
     "description": "Nine-position window snapping for the numpad compass: halves, quarters, maximize, restore, minimize with configurable multi-keybindings.",
     "shell-version": ["50"],
     "settings-schema": "org.gnome.shell.extensions.snapnine",
-    "version": 8
+    "version": 9
 }
