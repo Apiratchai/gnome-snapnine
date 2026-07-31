@@ -96,7 +96,7 @@ const IFACE_XML = `
   </interface>
 </node>`;
 
-export default class WinsnapExtension extends Extension {
+export default class SnapnineExtension extends Extension {
     enable() {
         this._settings = this.getSettings();
         this._bindings = [];

@@ -66,7 +66,7 @@ KEYBINDINGS
      snapnine is enabled.
 
 D-BUS
-     The extension exports the interface org.gnome.Shell.Extensions.Winsnap
+     The extension exports the interface org.gnome.Shell.Extensions.Snapnine
      on the session bus at /org/gnome/shell/extensions/snapnine (under the
      shell's own bus name), so windows can be tiled from scripts:
 

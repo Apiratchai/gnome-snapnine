@@ -98,7 +98,7 @@ class ShortcutRow extends Adw.ActionRow {
     }
 });
 
-export default class WinsnapPrefs extends ExtensionPreferences {
+export default class SnapninePrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         const group = new Adw.PreferencesGroup({
