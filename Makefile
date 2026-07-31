@@ -32,8 +32,8 @@ install:
 	cp schemas/$(SCHEMA).gschema.xml $(EXTDIR)/schemas/
 	glib-compile-schemas $(EXTDIR)/schemas
 	@echo "installed in $(EXTDIR)"
-	@echo "the shell only scans extensions at startup: log out and back in,"
-	@echo "or run: make enable"
+	@echo "the shell only scans extensions at startup."
+	@echo "log out and back in, then run: make enable (if not enabled already)"
 
 uninstall:
 	gnome-extensions disable $(UUID) 2>/dev/null || true

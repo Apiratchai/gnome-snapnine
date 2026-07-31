@@ -83,9 +83,11 @@ source.
     git clone https://github.com/Apiratchai/gnome-snapnine.git
     cd gnome-snapnine
     make install    # installs to ~/.local/share/gnome-shell/extensions, no sudo
-    make enable
 
-Then log out and back in once (same reason as above).
+Then log out and back in once (the shell only scans extensions at
+startup). After login, enable it if it did not enable itself:
+
+    make enable
 
 To remove: `gnome-extensions disable snapnine@apiratchai`, then delete
 the folder ~/.local/share/gnome-shell/extensions/snapnine@apiratchai.
