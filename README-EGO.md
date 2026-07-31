@@ -63,7 +63,29 @@ told it to go.
 
 ## Install
 
-    make install     # then log out and back in
+Two ways. The zip is easier; the git way is for people who want the
+source.
+
+### Way 1: release zip (recommended)
+
+1. Download the zip:
+   https://github.com/Apiratchai/gnome-snapnine/releases/download/v8/snapnine.zip
+2. Install it:
+
+       gnome-extensions install snapnine.zip
+
+3. Log out and back in. The GNOME shell only looks for new extensions
+   at login, so this step is required the first time.
+4. Done. Press Super+Left on any window to test.
+
+### Way 2: from git
+
+    git clone https://github.com/Apiratchai/gnome-snapnine.git
+    cd gnome-snapnine
+    make install    # installs to ~/.local/share/gnome-shell/extensions, no sudo
     make enable
 
-or: `gnome-extensions install snapnine.zip` (make zip).
+Then log out and back in once (same reason as above).
+
+To remove: `gnome-extensions disable snapnine@apiratchai`, then delete
+the folder ~/.local/share/gnome-shell/extensions/snapnine@apiratchai.
