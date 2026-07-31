@@ -6,8 +6,8 @@
       which returns NULL for plain string keys -- a binding registered
       with no accelerators can never fire.
   -->
-  <schema id="org.gnome.shell.extensions.winsnap"
-          path="/org/gnome/shell/extensions/winsnap/">
+  <schema id="org.gnome.shell.extensions.snapnine"
+          path="/org/gnome/shell/extensions/snapnine/">
     <key name="snap-left" type="as">
       <default><![CDATA[['<Super>Left']]]></default>
       <summary>Snap to left half</summary>

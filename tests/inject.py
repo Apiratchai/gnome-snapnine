@@ -23,7 +23,7 @@ def main():
                             e.KEY_1, e.KEY_2, e.KEY_3, e.KEY_4, e.KEY_5,
                             e.KEY_6, e.KEY_7, e.KEY_8, e.KEY_9, e.KEY_0,
                             e.KEY_TAB, e.KEY_ENTER, e.KEY_Q]},
-                name='winsnap-injector')
+                name='snapnine-injector')
     codes = [KEYS[k] for k in combo]
     for c in codes:
         ui.write(e.EV_KEY, c, 1)

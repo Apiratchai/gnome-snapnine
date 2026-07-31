@@ -1,4 +1,4 @@
-// rect.js -- nine-position geometry for winsnap.
+// rect.js -- nine-position geometry for snapnine.
 //
 // Pure functions, no shell imports.  Every position is a rectangle
 // derived from the monitor's work area, so this module can be tested

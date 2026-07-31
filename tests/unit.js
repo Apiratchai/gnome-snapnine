@@ -1,4 +1,4 @@
-// unit.js -- geometry tests for winsnap.  Plain gjs, no compositor:
+// unit.js -- geometry tests for snapnine.  Plain gjs, no compositor:
 //
 //     gjs tests/unit.js
 //

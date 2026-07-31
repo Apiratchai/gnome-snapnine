@@ -1,4 +1,4 @@
-# winsnap — nine-position window snapping for GNOME Shell
+# snapnine — nine-position window snapping for GNOME Shell
 
 Snap the focused window to one of nine rectangles on its monitor's work
 area — vertical and horizontal halves, four quarters, the full screen —
@@ -17,10 +17,10 @@ at once.
 | restore (float)   | `Super+Down` |
 | minimize          | `Super+h` |
 
-Everything is rebindable in the settings dialog (Extensions → winsnap)
+Everything is rebindable in the settings dialog (Extensions → snapnine)
 or with gsettings.  Add as many shortcuts per action as you like; a
 binding that collides with a built-in GNOME shortcut (including the
-`Super+1..9` app switcher) disables that built-in while winsnap is
+`Super+1..9` app switcher) disables that built-in while snapnine is
 enabled and restores it afterwards.
 
 Pressing a position key a second time restores the window's previous
@@ -31,7 +31,7 @@ geometry.
 * **Fixes the fresh-window race.**  On Wayland, a newly opened window
   (Firefox especially) can override a snap with its own late geometry,
   leaving the window "neutral" in the middle — the bug reported as
-  tiling-assistant #421, still open.  winsnap waits for the initial
+  tiling-assistant #421, still open.  snapnine waits for the initial
   placement to settle and re-asserts the target size against late
   client resizes.
 * **Small and auditable.**  ~350 lines, no adaptive layouts, no
@@ -49,7 +49,7 @@ geometry.
     make unit        # geometry tests, no shell needed
     make live        # full integration suite (needs the extension enabled)
 
-or, from a zip: `gnome-extensions install winsnap.zip`.
+or, from a zip: `gnome-extensions install snapnine.zip`.
 
 ## Environment
 

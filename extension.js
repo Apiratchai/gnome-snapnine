@@ -1,4 +1,4 @@
-// extension.js -- winsnap: nine-position window snapping for GNOME Shell.
+// extension.js -- snapnine: nine-position window snapping for GNOME Shell.
 //
 // The focused window is moved and resized to one of nine rectangles on
 // its monitor's work area: halves, quarters, maximize -- plus minimize.
@@ -14,7 +14,7 @@
 // for as long as this extension is enabled, then restored.  This is the
 // only other schema we ever touch.
 //
-// A small D-Bus interface (org.gnome.Shell.Extensions.Winsnap) exposes
+// A small D-Bus interface (org.gnome.Shell.Extensions.Snapnine) exposes
 // the same operations so the extension can be driven and verified from
 // scripts; tests/test.sh uses it.
 
@@ -41,7 +41,7 @@ const KEY_TO_ACTION = Object.fromEntries([
 ]);
 const ALL_KEYS = Object.keys(KEY_TO_ACTION);
 
-const DBUS_PATH = '/org/gnome/shell/extensions/winsnap';
+const DBUS_PATH = '/org/gnome/shell/extensions/snapnine';
 // Built-in shortcuts that may collide with ours.
 // [schema, key]; value is an array of accelerators.
 const BUILTIN_KEYS = [
@@ -59,7 +59,7 @@ const BUILTIN_KEYS = [
 
 const IFACE_XML = `
 <node>
-  <interface name="org.gnome.Shell.Extensions.Winsnap">
+  <interface name="org.gnome.Shell.Extensions.Snapnine">
     <method name="SnapWindow">
       <arg type="s" name="title" direction="in"/>
       <arg type="s" name="position" direction="in"/>
@@ -120,7 +120,7 @@ export default class WinsnapExtension extends Extension {
             this._shield();
         });
 
-        log('winsnap: enabled');
+        log('snapnine: enabled');
     }
 
     disable() {
@@ -144,7 +144,7 @@ export default class WinsnapExtension extends Extension {
             this._dbusImpl.unexport();
             this._exported = false;
         }
-        log('winsnap: disabled');
+        log('snapnine: disabled');
     }
 
     // -- keybindings ---------------------------------------------------
@@ -163,7 +163,7 @@ export default class WinsnapExtension extends Extension {
                 () => this.snap(global.display.focus_window,
                                 KEY_TO_ACTION[key]));
             if (action === Meta.KeyBindingAction.NONE) {
-                log(`winsnap: cannot bind ${key}`);
+                log(`snapnine: cannot bind ${key}`);
                 continue;
             }
             Main.wm.allowKeybinding(key, Shell.ActionMode.NORMAL);
@@ -192,7 +192,7 @@ export default class WinsnapExtension extends Extension {
                 continue;
             this._shielded.push([schemaId, key, accels]);
             settings.set_strv(key, []);
-            log(`winsnap: disabled built-in shortcut ${schemaId} ${key}`);
+            log(`snapnine: disabled built-in shortcut ${schemaId} ${key}`);
         }
     }
 

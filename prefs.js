@@ -1,4 +1,4 @@
-// prefs.js -- winsnap settings dialog.
+// prefs.js -- snapnine settings dialog.
 //
 // Lists the ten actions with their current keybindings.  Click a key to
 // capture a new one; press Escape to cancel, Backspace to clear (which

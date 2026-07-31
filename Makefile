@@ -1,4 +1,4 @@
-# winsnap -- nine-position window snapping for GNOME Shell
+# snapnine -- nine-position window snapping for GNOME Shell
 #
 #	make install	install for the current user
 #	make uninstall	remove
@@ -8,22 +8,23 @@
 #	make live	live integration tests (extension must be enabled)
 #	make help	this text
 
-UUID    = winsnap@apiratchai
+UUID    = snapnine@apiratchai
 EXTDIR  = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
-SCHEMA  = org.gnome.shell.extensions.winsnap
+SCHEMA  = org.gnome.shell.extensions.snapnine
 
 FILES   = metadata.json extension.js rect.js prefs.js
 
 .PHONY: install uninstall enable disable unit live zip help
 
 zip:
-	rm -f winsnap.zip
-	mkdir -p /tmp/winsnap-zip/schemas
-	cp $(FILES) /tmp/winsnap-zip/
-	cp schemas/$(SCHEMA).gschema.xml /tmp/winsnap-zip/schemas/
-	cd /tmp/winsnap-zip && zip -qr "$$(pwd)/winsnap.zip" .
-	rm -rf /tmp/winsnap-zip
-	@echo "winsnap.zip ready: gnome-extensions install winsnap.zip"
+	rm -f snapnine.zip
+	rm -rf /tmp/snapnine-zip
+	mkdir -p /tmp/snapnine-zip/schemas
+	cp $(FILES) /tmp/snapnine-zip/
+	cp schemas/$(SCHEMA).gschema.xml /tmp/snapnine-zip/schemas/
+	(cd /tmp/snapnine-zip && zip -qr - .) > snapnine.zip
+	rm -rf /tmp/snapnine-zip
+	@echo "snapnine.zip ready: gnome-extensions install snapnine.zip"
 
 install:
 	mkdir -p $(EXTDIR)/schemas

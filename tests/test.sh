@@ -1,5 +1,5 @@
 #!/bin/sh
-# test.sh -- live integration tests for winsnap.
+# test.sh -- live integration tests for snapnine.
 #
 # Requires:
 #   - the extension enabled in the running GNOME Shell
@@ -15,9 +15,9 @@
 set -u
 
 DEST=org.gnome.Shell
-IFACE=org.gnome.Shell.Extensions.Winsnap
-PATH_=/org/gnome/shell/extensions/winsnap
-EXT=winsnap@apiratchai
+IFACE=org.gnome.Shell.Extensions.Snapnine
+PATH_=/org/gnome/shell/extensions/snapnine
+EXT=snapnine@apiratchai
 EXTDIR=$HOME/.local/share/gnome-shell/extensions/$EXT
 # our schema lives with the extension; the shell finds it, plain gsettings does not
 GS="gsettings --schemadir $EXTDIR/schemas"
@@ -45,7 +45,7 @@ value() {
 }
 
 window_state() { # window_state <id>
-    call GetWindowState "winsnap-test-$1" | value
+    call GetWindowState "snapnine-test-$1" | value
 }
 
 # wait_window <id> -- poll until the test window exists and its
@@ -57,7 +57,7 @@ wait_window() {
     while [ $n -lt 50 ]; do
         state=$(window_state "$1")
         if [ "$state" != gone ] && [ -n "$state" ]; then
-            cur=$(call GetWindowRect "winsnap-test-$1" | value)
+            cur=$(call GetWindowRect "snapnine-test-$1" | value)
             if [ -n "$prev" ] && [ "$cur" = "$prev" ]; then
                 return 0
             fi
@@ -69,23 +69,23 @@ wait_window() {
     return 1
 }
 
-# spawn_window <id> -- a fresh terminal titled winsnap-test-<id>
+# spawn_window <id> -- a fresh terminal titled snapnine-test-<id>
 spawn_window() {
     if command -v kitty >/dev/null 2>&1; then
-        kitty --title "winsnap-test-$1" >/dev/null 2>&1 &
+        kitty --title "snapnine-test-$1" >/dev/null 2>&1 &
     else
-        ptyxis -T "winsnap-test-$1" >/dev/null 2>&1 &
+        ptyxis -T "snapnine-test-$1" >/dev/null 2>&1 &
     fi
 }
 
 kill_window() {
-    pkill -f "winsnap-test-$1" 2>/dev/null
+    pkill -f "snapnine-test-$1" 2>/dev/null
     sleep 0.3
 }
 
 # expected rects from the window's own work area
 expect_rects() { # expect_rects <id> -- sets expect_* and wa_*
-    wa=$(call GetMonitorWorkArea "winsnap-test-$1" | value)
+    wa=$(call GetMonitorWorkArea "snapnine-test-$1" | value)
     set -- $wa
     wx=$1; wy=$2; ww=$3; wh=$4
     hw=$((ww / 2))
@@ -121,11 +121,11 @@ test_position() {
         return
     fi
     sleep 0.5
-    call MoveWindow "winsnap-test-$id" 200 200 600 400 >/dev/null
+    call MoveWindow "snapnine-test-$id" 200 200 600 400 >/dev/null
     sleep 0.3
-    call SnapWindow "winsnap-test-$id" "$1" >/dev/null
+    call SnapWindow "snapnine-test-$id" "$1" >/dev/null
     sleep 0.5
-    actual=$(call GetWindowRect "winsnap-test-$id" | value)
+    actual=$(call GetWindowRect "snapnine-test-$id" | value)
     eval "want=\$expect_$1"
     check "snap $1" "$want" "$actual"
     kill_window "$id"
@@ -133,7 +133,7 @@ test_position() {
 
 # ---------------------------------------------------------------- setup
 
-echo "== winsnap live tests =="
+echo "== snapnine live tests =="
 
 if [ -z "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]; then
     echo "no display; run from inside the graphical session"
@@ -165,11 +165,11 @@ for pos in left right up down top-left top-right bottom-left bottom-right maximi
     fi
     sleep 0.5
     expect_rects "$id"
-    call MoveWindow "winsnap-test-$id" 200 200 600 400 >/dev/null
+    call MoveWindow "snapnine-test-$id" 200 200 600 400 >/dev/null
     sleep 0.3
-    call SnapWindow "winsnap-test-$id" "$pos" >/dev/null
+    call SnapWindow "snapnine-test-$id" "$pos" >/dev/null
     sleep 0.5
-    actual=$(call GetWindowRect "winsnap-test-$id" | value)
+    actual=$(call GetWindowRect "snapnine-test-$id" | value)
     eval "want=\$$(want_var "$pos")"
     check "snap $pos" "$want" "$actual"
     kill_window "$id"
@@ -182,14 +182,14 @@ id=$((id + 1))
 spawn_window "$id"
 if wait_window "$id"; then
     sleep 0.5
-    call MoveWindow "winsnap-test-$id" 200 200 600 400 >/dev/null
+    call MoveWindow "snapnine-test-$id" 200 200 600 400 >/dev/null
     sleep 0.3
-    call SnapWindow "winsnap-test-$id" left >/dev/null
+    call SnapWindow "snapnine-test-$id" left >/dev/null
     sleep 0.5
-    call SnapWindow "winsnap-test-$id" left >/dev/null
+    call SnapWindow "snapnine-test-$id" left >/dev/null
     sleep 0.5
     check "toggle restores geometry" "200 200 600 400" \
-        "$(call GetWindowRect "winsnap-test-$id" | value)"
+        "$(call GetWindowRect "snapnine-test-$id" | value)"
     kill_window "$id"
 else
     bad "toggle window never appeared"
@@ -200,14 +200,14 @@ id=$((id + 1))
 spawn_window "$id"
 if wait_window "$id"; then
     sleep 0.5
-    call SnapWindow "winsnap-test-$id" maximize >/dev/null
+    call SnapWindow "snapnine-test-$id" maximize >/dev/null
     sleep 0.5
     check "maximize state" "maximized" "$(window_state "$id")"
     expect_rects "$id"
-    call SnapWindow "winsnap-test-$id" left >/dev/null
+    call SnapWindow "snapnine-test-$id" left >/dev/null
     sleep 0.5
     check "maximize -> snap left" "$expect_left" \
-        "$(call GetWindowRect "winsnap-test-$id" | value)"
+        "$(call GetWindowRect "snapnine-test-$id" | value)"
     kill_window "$id"
 else
     bad "maximize window never appeared"
@@ -221,20 +221,20 @@ if wait_window "$id"; then
     expect_rects "$id"
     rw=$((ww * 3 / 5)); rh=$((wh * 4 / 5))
     expect_restore="$((wx + (ww - rw) / 2)) $((wy + (wh - rh) / 2)) $rw $rh"
-    call MoveWindow "winsnap-test-$id" 200 200 600 400 >/dev/null
+    call MoveWindow "snapnine-test-$id" 200 200 600 400 >/dev/null
     sleep 0.3
-    call SnapWindow "winsnap-test-$id" maximize >/dev/null
+    call SnapWindow "snapnine-test-$id" maximize >/dev/null
     sleep 0.5
-    call SnapWindow "winsnap-test-$id" restore >/dev/null
+    call SnapWindow "snapnine-test-$id" restore >/dev/null
     sleep 0.5
     check "restore from maximized floats centered" "$expect_restore" \
-        "$(call GetWindowRect "winsnap-test-$id" | value)"
-    call SnapWindow "winsnap-test-$id" left >/dev/null
+        "$(call GetWindowRect "snapnine-test-$id" | value)"
+    call SnapWindow "snapnine-test-$id" left >/dev/null
     sleep 0.5
-    call SnapWindow "winsnap-test-$id" restore >/dev/null
+    call SnapWindow "snapnine-test-$id" restore >/dev/null
     sleep 0.5
     check "restore after snap floats centered" "$expect_restore" \
-        "$(call GetWindowRect "winsnap-test-$id" | value)"
+        "$(call GetWindowRect "snapnine-test-$id" | value)"
     kill_window "$id"
 else
     bad "restore window never appeared"
@@ -245,7 +245,7 @@ id=$((id + 1))
 spawn_window "$id"
 if wait_window "$id"; then
     sleep 0.5
-    call SnapWindow "winsnap-test-$id" minimize >/dev/null
+    call SnapWindow "snapnine-test-$id" minimize >/dev/null
     sleep 0.5
     check "minimize state" "minimized" "$(window_state "$id")"
     kill_window "$id"
@@ -258,46 +258,46 @@ id=$((id + 1))
 spawn_window "$id"
 if wait_window "$id"; then
     sleep 0.5
-    call SetFullscreen "winsnap-test-$id" true >/dev/null
+    call SetFullscreen "snapnine-test-$id" true >/dev/null
     sleep 0.5
-    before=$(call GetWindowRect "winsnap-test-$id" | value)
-    call SnapWindow "winsnap-test-$id" left >/dev/null
+    before=$(call GetWindowRect "snapnine-test-$id" | value)
+    call SnapWindow "snapnine-test-$id" left >/dev/null
     sleep 0.5
     check "fullscreen state kept" "fullscreen" "$(window_state "$id")"
     check "fullscreen geometry kept" "$before" \
-        "$(call GetWindowRect "winsnap-test-$id" | value)"
-    call SetFullscreen "winsnap-test-$id" false >/dev/null
+        "$(call GetWindowRect "snapnine-test-$id" | value)"
+    call SetFullscreen "snapnine-test-$id" false >/dev/null
     kill_window "$id"
 else
     bad "fullscreen window never appeared"
 fi
 
 # dialog guard: a zenity dialog must be left alone
-zenity --question --title=winsnap-dialog >/dev/null 2>&1 &
+zenity --question --title=snapnine-dialog >/dev/null 2>&1 &
 sleep 1
-if call GetWindowState winsnap-dialog | value >/dev/null 2>&1 \
-   && [ "$(call GetWindowState winsnap-dialog | value)" != gone ]; then
-    before=$(call GetWindowRect winsnap-dialog | value)
-    call SnapWindow winsnap-dialog left >/dev/null
+if call GetWindowState snapnine-dialog | value >/dev/null 2>&1 \
+   && [ "$(call GetWindowState snapnine-dialog | value)" != gone ]; then
+    before=$(call GetWindowRect snapnine-dialog | value)
+    call SnapWindow snapnine-dialog left >/dev/null
     sleep 0.3
     check "dialog geometry kept" "$before" \
-        "$(call GetWindowRect winsnap-dialog | value)"
-    pkill -f winsnap-dialog 2>/dev/null
+        "$(call GetWindowRect snapnine-dialog | value)"
+    pkill -f snapnine-dialog 2>/dev/null
 else
     bad "dialog window never appeared"
-    pkill -f winsnap-dialog 2>/dev/null
+    pkill -f snapnine-dialog 2>/dev/null
 fi
 
 # unknown window: SnapWindow reports not found, no crash
-found=$(call SnapWindow winsnap-no-such-window left | value)
+found=$(call SnapWindow snapnine-no-such-window left | value)
 check "unknown window reports false" "false" "$found"
 
 # ------------------------------------------------------- configuration
 
 # multi-binding: two accelerators for one action; the second must work
 # (and the builtin app-switcher Super+2 must be shielded away)
-orig_down=$($GS get org.gnome.shell.extensions.winsnap snap-down)
-$GS set org.gnome.shell.extensions.winsnap snap-down "['<Super>Down', '<Super>2']"
+orig_down=$($GS get org.gnome.shell.extensions.snapnine snap-down)
+$GS set org.gnome.shell.extensions.snapnine snap-down "['<Super>Down', '<Super>2']"
 sleep 0.5
 id=$((id + 1))
 spawn_window "$id"
@@ -307,17 +307,17 @@ if wait_window "$id"; then
     python3 "$(dirname "$0")/inject.py" super 2
     sleep 0.8
     check "second accelerator (<Super>2) snaps down" "$expect_down" \
-        "$(call GetWindowRect "winsnap-test-$id" | value)"
+        "$(call GetWindowRect "snapnine-test-$id" | value)"
     kill_window "$id"
 else
     bad "multi-binding window never appeared"
 fi
-$GS set org.gnome.shell.extensions.winsnap snap-down "$orig_down"
+$GS set org.gnome.shell.extensions.snapnine snap-down "$orig_down"
 sleep 0.5
 
 # rebind: changing a shortcut must not break the extension
-orig_left=$($GS get org.gnome.shell.extensions.winsnap snap-left)
-$GS set org.gnome.shell.extensions.winsnap snap-left "['<Super><Ctrl>Left']"
+orig_left=$($GS get org.gnome.shell.extensions.snapnine snap-left)
+$GS set org.gnome.shell.extensions.snapnine snap-left "['<Super><Ctrl>Left']"
 sleep 0.5
 if gdbus introspect --session --dest "$DEST" --object-path "$PATH_" \
     >/dev/null 2>&1; then
@@ -325,7 +325,7 @@ if gdbus introspect --session --dest "$DEST" --object-path "$PATH_" \
 else
     bad "rebind killed the D-Bus interface"
 fi
-$GS set org.gnome.shell.extensions.winsnap snap-left "$orig_left"
+$GS set org.gnome.shell.extensions.snapnine snap-left "$orig_left"
 sleep 0.5
 
 # shield: a colliding built-in shortcut is disabled, then restored
@@ -347,8 +347,8 @@ sleep 1
 
 # ---------------------------------------------------------------- done
 
-pkill -f "winsnap-test-" 2>/dev/null
-pkill -f winsnap-dialog 2>/dev/null
+pkill -f "snapnine-test-" 2>/dev/null
+pkill -f snapnine-dialog 2>/dev/null
 
 echo ""
 echo "$pass passed, $fail failed"
@@ -372,7 +372,7 @@ if python3 -c 'import evdev' >/dev/null 2>&1; then
         python3 "$(dirname "$0")/inject.py" super left
         sleep 0.8
         check "keypress Super+Left snaps focused window" "$expect_left" \
-            "$(call GetWindowRect "winsnap-test-$id" | value)"
+            "$(call GetWindowRect "snapnine-test-$id" | value)"
         kill_window "$id"
     else
         bad "keypress test window never appeared"
@@ -391,12 +391,12 @@ if python3 -c 'import gi; gi.require_version("Gtk", "4.0")' >/dev/null 2>&1; the
     python3 "$(dirname "$0")/race.py" >/dev/null 2>&1 &
     sleep 1.2
     id=$((id + 1))
-    if [ "$(call GetWindowState winsnap-race | value)" != gone ]; then
+    if [ "$(call GetWindowState snapnine-race | value)" != gone ]; then
         expect_rects race
-        call SnapWindow winsnap-race left >/dev/null
+        call SnapWindow snapnine-race left >/dev/null
         sleep 3.5     # past the late resize at t+1.5s
         check "late client resize re-asserted" "$expect_left" \
-            "$(call GetWindowRect winsnap-race | value)"
+            "$(call GetWindowRect snapnine-race | value)"
     else
         bad "race window never appeared"
     fi
