@@ -1,4 +1,4 @@
-# snapnine -- nine-position window snapping for GNOME Shell
+# gnome-snapnine -- nine-position window snapping for GNOME Shell
 #
 #	make install	install for the current user
 #	make uninstall	remove

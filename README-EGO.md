@@ -1,4 +1,4 @@
-# snapnine — nine-position window snapping for GNOME Shell
+# gnome-snapnine — nine-position window snapping for GNOME Shell
 
 Snap the focused window to one of nine rectangles on its monitor's work
 area — vertical and horizontal halves, four quarters, the full screen —

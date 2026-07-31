@@ -1,7 +1,7 @@
-SNAPNINE(1)                General Commands Manual               SNAPNINE(1)
+GNOME-SNAPNINE(1)                General Commands Manual               SNAPNINE(1)
 
 NAME
-     snapnine — nine-position window snapping for GNOME Shell
+     gnome-snapnine — nine-position window snapping for GNOME Shell
 
 SYNOPSIS
      make install
@@ -9,7 +9,7 @@ SYNOPSIS
      make live
 
 DESCRIPTION
-     snapnine tiles the focused window into one of nine rectangles on its
+     gnome-snapnine tiles the focused window into one of nine rectangles on its
      monitor's work area: vertical halves (left, right), horizontal
      halves (up, down), four quarters, and the full work area
      (maximize), plus minimize.  Pressing a position key a second time
@@ -108,4 +108,4 @@ BUGS
      re-assert the constraint on later resizes.  This is a mutter
      behaviour we do not fight.
 
-SNAPNINE(1)                General Commands Manual               SNAPNINE(1)
+GNOME-SNAPNINE(1)                General Commands Manual               SNAPNINE(1)

@@ -1,8 +1,8 @@
 {
     "uuid": "snapnine@apiratchai",
-    "name": "snapnine",
+    "name": "gnome-snapnine",
     "description": "Nine-position window snapping for the numpad compass: halves, quarters, maximize, restore, minimize — configurable multi-keybindings.",
     "shell-version": ["50"],
     "settings-schema": "org.gnome.shell.extensions.snapnine",
-    "version": 7
+    "version": 8
 }
