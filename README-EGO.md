@@ -62,7 +62,7 @@ told it to go.
 ## Honest notes
 
 - The code was written with DeepSeek Flash (0731) in about one hour,
-  for $0.308. I am not a maintainer and do not plan to be. Expect
+  for $0.361. I am not a maintainer and do not plan to be. Expect
   rough edges.
 - There is a test suite to compensate: 28 geometry unit tests (plain
   gjs) and a live suite that drives real windows over D-Bus and
