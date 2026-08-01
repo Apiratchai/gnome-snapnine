@@ -114,14 +114,22 @@ gsettings cannot see it; pass --schemadir:
 Every action accepts several accelerators; an empty array disables the
 shortcut. A rebinding that collides with a built-in GNOME shortcut
 (for example Super+2, the app switcher) disables that built-in while
-snapnine is enabled and restores it afterwards. No other part of the
-GNOME configuration is ever modified.
+snapnine is enabled. Disabling snapnine restores those built-ins;
+nothing else in the GNOME configuration is ever touched.
 
-## D-Bus interface
+## Scripting (D-Bus)
 
-The extension exports org.gnome.Shell.Extensions.Snapnine on the
-session bus at /org/gnome/shell/extensions/snapnine (under the shell's
-own bus name), so windows can be tiled from scripts:
+Everything the keyboard can do, a script can do. The same operations
+are exposed on the session bus; for example, snap the window titled
+"Terminal" to the left half:
+
+    gdbus call --session \
+        --dest org.gnome.Shell \
+        --object-path /org/gnome/shell/extensions/snapnine \
+        --method org.gnome.Shell.Extensions.Snapnine.SnapWindow \
+        Terminal left
+
+Methods:
 
     SnapWindow(title, position)     -> found
     MoveWindow(title, x, y, w, h)   -> found
@@ -131,9 +139,16 @@ own bus name), so windows can be tiled from scripts:
     SetFullscreen(title, full)      -> found
     GetMonitors()                   -> count
 
-Position is one of left, right, up, down, top-left, top-right,
-bottom-left, bottom-right, maximize, restore, minimize. tests/test.sh
-drives the same interface.
+Position (SnapWindow, MoveWindow uses x/y/w/h instead):
+
+| Position | Snap to |
+|---|---|
+| left / right | left / right half |
+| up / down | top / bottom half |
+| top-left, top-right, bottom-left, bottom-right | quarters |
+| maximize / restore / minimize | full screen / float centered / hide |
+
+The live test suite (tests/test.sh) drives the same interface.
 
 ## Limitations
 
