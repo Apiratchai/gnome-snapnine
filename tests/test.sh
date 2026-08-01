@@ -292,8 +292,10 @@ fi
 
 # ...but MoveWindow must move it: some windows ignore the first
 # move request (tiling-assistant: GNOME Terminal; reproduced here
-# with zenity).  verify-and-retry must win.
-zenity --info --title=snapnine-movetest --text=test >/dev/null 2>&1 &
+# with zenity).  move_frame-first + verify-and-retry must win.
+# --text-info, not --info: the latter is fixed-size by design and
+# keeps its size no matter what we ask.
+zenity --text-info --title=snapnine-movetest --text=test >/dev/null 2>&1 &
 sleep 1.2
 if [ "$(call GetWindowState snapnine-movetest | value)" != gone ]; then
     call MoveWindow snapnine-movetest 120 120 500 300 >/dev/null
