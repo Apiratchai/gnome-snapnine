@@ -8,8 +8,9 @@
 // them with the settings dialog, gsettings(1), or dconf-editor.
 //
 // Pressing a position key a second time restores the window's previous
-// geometry.  Fullscreen windows, dialogs, and other non-normal windows
-// are left alone.
+// geometry.  Position snaps leave fullscreen windows, dialogs, and
+// other non-normal windows alone; maximize, restore, and minimize act
+// on whatever window is focused.
 //
 // If a position key collides with a built-in GNOME shortcut (the stock
 // Super+arrow tiling, maximize, minimize), the built-in one is disabled

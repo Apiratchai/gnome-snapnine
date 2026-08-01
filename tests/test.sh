@@ -367,18 +367,6 @@ sleep 1
 
 # ---------------------------------------------------------------- done
 
-pkill -f "snapnine-test-" 2>/dev/null
-pkill -f snapnine-dialog 2>/dev/null
-
-echo ""
-echo "$pass passed, $fail failed"
-if [ $fail -gt 0 ]; then
-    echo "LIVE TESTS FAILED"
-    exit 1
-fi
-echo "live tests ok"
-exit 0
-
 # ------------------------------------------------- key delivery (real keys)
 
 # Press Super+Left on a virtual uinput keyboard; the focused window
@@ -412,7 +400,9 @@ if python3 -c 'import gi; gi.require_version("Gtk", "4.0")' >/dev/null 2>&1; the
     sleep 1.2
     id=$((id + 1))
     if [ "$(call GetWindowState snapnine-race | value)" != gone ]; then
-        expect_rects race
+        wa=$(call GetMonitorWorkArea snapnine-race | value)
+        set -- $wa
+        expect_left="$1 $2 $(( $3 / 2 )) $4"
         call SnapWindow snapnine-race left >/dev/null
         sleep 3.5     # past the late resize at t+1.5s
         check "late client resize re-asserted" "$expect_left" \
@@ -425,3 +415,15 @@ if python3 -c 'import gi; gi.require_version("Gtk", "4.0")' >/dev/null 2>&1; the
 else
     echo "SKIP  late-resize test (python3-gi not installed)"
 fi
+
+pkill -f "snapnine-test-" 2>/dev/null
+pkill -f snapnine-dialog 2>/dev/null
+
+echo ""
+echo "$pass passed, $fail failed"
+if [ $fail -gt 0 ]; then
+    echo "LIVE TESTS FAILED"
+    exit 1
+fi
+echo "live tests ok"
+exit 0

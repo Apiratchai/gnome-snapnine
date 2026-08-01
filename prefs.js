@@ -24,7 +24,7 @@ const ACTIONS = [
     ['snap-bottom-left', 'Snap to bottom-left quarter'],
     ['snap-bottom-right', 'Snap to bottom-right quarter'],
     ['snap-maximize', 'Maximize'],
-    ['snap-restore', 'Restore / unmaximize'],
+    ['snap-restore', 'Restore / float centered'],
     ['snap-minimize', 'Minimize'],
 ];
 

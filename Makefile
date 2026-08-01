@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
 # gnome-snapnine -- nine-position window snapping for GNOME Shell
 #
 #	make install	install for the current user

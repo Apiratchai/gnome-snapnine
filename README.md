@@ -2,7 +2,8 @@
 
 Window snapping for GNOME Shell, designed around the numpad.
 
-Nine positions: halves, quarters, full screen, plus restore (float
+Nine positions: halves, quarters, maximize (the whole work area),
+plus restore (float
 centered) and minimize. Every action has its own shortcut, and you can
 give each action several shortcuts.
 
@@ -15,7 +16,8 @@ give each action several shortcuts.
 ```
 
 No numpad? Bind anything else. The layout is one array in rect.js.
-Adding a position is a two-line change.
+Adding a position means touching rect.js, the schema, and the
+prefs dialog; the tests then cover it.
 
 ## Default shortcuts
 
@@ -154,7 +156,7 @@ Position (SnapWindow, MoveWindow uses x/y/w/h instead):
 | left / right | left / right half |
 | up / down | top / bottom half |
 | top-left, top-right, bottom-left, bottom-right | quarters |
-| maximize / restore / minimize | full screen / float centered / hide |
+| maximize / restore / minimize | work area / float centered / hide |
 
 The live test suite (tests/test.sh) drives the same interface.
 
@@ -167,9 +169,9 @@ The live test suite (tests/test.sh) drives the same interface.
 - Windows tiled by drag-and-drop keep a mutter tile constraint.
   Snapping them away works, but mutter may re-assert the constraint
   on later resizes. That is mutter behaviour, not fought.
-- GNOME 50 has no programmatic way to inject key presses from outside
-  the shell, so the live suite verifies geometry and state, not the
-  key grab itself.
+- GNOME 50 offers no API to inject key presses from outside the
+  shell, so the suite drives a uinput virtual keyboard instead
+  (tests/inject.py).
 
 ## Testing
 
@@ -181,6 +183,8 @@ The live test suite (tests/test.sh) drives the same interface.
 GPL-2.0-or-later (see LICENSE).  This project was developed with
 reference to tiling-assistant by Leleat (GPL-2.0-or-later); the
 specific borrowings are credited in the code comments and in NOTICE.
+SPDX headers mark all source and build files; metadata.json is the
+one exception because JSON cannot carry comments.
 
 ## Adopted from tiling-assistant
 
