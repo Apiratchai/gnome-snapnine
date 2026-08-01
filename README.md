@@ -14,8 +14,8 @@ give each action several shortcuts.
   1 2 3      bottom-left  bottom-half  bottom-right
 ```
 
-No numpad? Bind anything else. The layout is one array in rect.js;
-adding a position is a two-line change.
+No numpad? Bind anything else. The layout is one array in rect.js.
+Adding a position is a two-line change.
 
 ## Default shortcuts
 
@@ -41,7 +41,7 @@ have to press the key two or three times.
 
 The symptom was reported against Tiling Assistant as
 [issue #421](https://github.com/ubuntu/Tiling-Assistant/issues/421),
-filed by their user jumbled00r. That user is not me; I only suspect we
+filed by their user jumbled00r. That user is not me. I only suspect we
 share the same issue. The issue was still open when this extension was
 written. A similar report exists for KWin
 ([KDE bug 473594](https://bugs.kde.org/show_bug.cgi?id=473594)), so
@@ -71,7 +71,7 @@ told it to go.
 
 ## Install
 
-Two ways. The zip is easier; the git way is for people who want the
+Two ways. The zip is easier. The git way is for people who want the
 source.
 
 ### Way 1: release zip (recommended)
@@ -104,24 +104,32 @@ the folder ~/.local/share/gnome-shell/extensions/snapnine@github.
 
 The settings dialog (Extensions → snapnine) covers everything, but
 gsettings works too. The schema lives with the extension, so plain
-gsettings cannot see it; pass --schemadir:
+gsettings cannot see it, so pass --schemadir:
 
     gsettings --schemadir \
         ~/.local/share/gnome-shell/extensions/snapnine@github/schemas \
         set org.gnome.shell.extensions.snapnine snap-left \
         "['<Super>Left', '<Super>KP_4']"
 
-Every action accepts several accelerators; an empty array disables the
+Every action accepts several accelerators. An empty array disables the
 shortcut. A rebinding that collides with a built-in GNOME shortcut
 (for example Super+2, the app switcher) disables that built-in while
-snapnine is enabled. Disabling snapnine restores those built-ins;
-nothing else in the GNOME configuration is ever touched.
+snapnine is enabled. Disabling snapnine restores those built-ins.
+Nothing else in the GNOME configuration is ever touched.
 
 ## Scripting (D-Bus)
 
-Everything the keyboard can do, a script can do. The same operations
-are exposed on the session bus; for example, snap the window titled
-"Terminal" to the left half:
+The D-Bus interface exists for the test suite: GNOME 50 has no remote
+way to drive the shell (the old eval channel is gone), so the
+extension exposes its operations on the session bus and tests/test.sh
+drives them. A side effect is that scripts can tile windows too. For
+example, open a terminal (the title must match exactly):
+
+    ptyxis -T Terminal
+
+(that is Fedora's terminal. On Ubuntu, Debian, Mint use
+`gnome-terminal --title Terminal`, on classic X11 setups
+`xterm -title Terminal`.) Then snap it to the left half:
 
     gdbus call --session \
         --dest org.gnome.Shell \
@@ -152,12 +160,12 @@ The live test suite (tests/test.sh) drives the same interface.
 
 ## Limitations
 
-- The shell scans for extensions only at session start; a new install
+- The shell scans for extensions only at session start, so a new install
   needs a log out and back in.
 - Other tiling extensions (tiling-assistant, WinTile, ...) grab the
-  same keys; disable them or rebind snapnine.
-- Windows tiled by drag-and-drop keep a mutter tile constraint;
-  snapping them away works, but mutter may re-assert the constraint
+  same keys, so disable them or rebind snapnine.
+- Windows tiled by drag-and-drop keep a mutter tile constraint.
+  Snapping them away works, but mutter may re-assert the constraint
   on later resizes. That is mutter behaviour, not fought.
 - GNOME 50 has no programmatic way to inject key presses from outside
   the shell, so the live suite verifies geometry and state, not the
