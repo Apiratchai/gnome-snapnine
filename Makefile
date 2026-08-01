@@ -12,7 +12,7 @@ UUID    = snapnine@github
 EXTDIR  = $(HOME)/.local/share/gnome-shell/extensions/$(UUID)
 SCHEMA  = org.gnome.shell.extensions.snapnine
 
-FILES   = metadata.json extension.js rect.js prefs.js
+FILES   = metadata.json extension.js rect.js prefs.js LICENSE
 
 .PHONY: install uninstall enable disable unit live zip help
 
