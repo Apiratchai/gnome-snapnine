@@ -199,11 +199,8 @@ borrowings are credited in the code comments and in NOTICE.
 
 Both are credited to tiling-assistant by Leleat; see NOTICE.
 
-## Future work
+## Scope
 
-- Run the live suite against the new code after the next session
-  restart, to confirm the ignore-move workaround against a real
-  zenity dialog (the test exists; it has not run against the new
-  code yet).
-- Multi-monitor behaviour: only a single monitor has been tested.
-- GNOME 51+ compatibility, when the shell moves on.
+- Tested on GNOME Shell 50.3, mutter 50.3, Wayland, Fedora, single
+  monitor.
+- GNOME 51 and multi-monitor setups are not yet verified.
