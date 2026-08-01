@@ -288,6 +288,22 @@ else
     pkill -f snapnine-dialog 2>/dev/null
 fi
 
+# ...but MoveWindow must move it: some windows ignore the first
+# move request (tiling-assistant: GNOME Terminal; reproduced here
+# with zenity).  verify-and-retry must win.
+zenity --info --title=snapnine-movetest --text=test >/dev/null 2>&1 &
+sleep 1.2
+if [ "$(call GetWindowState snapnine-movetest | value)" != gone ]; then
+    call MoveWindow snapnine-movetest 120 120 500 300 >/dev/null
+    sleep 0.6
+    check "dialog obeys MoveWindow (retry workaround)" "120 120 500 300" \
+        "$(call GetWindowRect snapnine-movetest | value)"
+    pkill -f "snapnine-movetes[t]" 2>/dev/null
+else
+    bad "move-test dialog never appeared"
+    pkill -f "snapnine-movetes[t]" 2>/dev/null
+fi
+
 # unknown window: SnapWindow reports not found, no crash
 found=$(call SnapWindow snapnine-no-such-window left | value)
 check "unknown window reports false" "false" "$found"

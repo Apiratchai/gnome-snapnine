@@ -242,7 +242,16 @@ export default class SnapnineExtension extends Extension {
             return;
         }
 
-        if (!isPosition(position) || !this._tilable(window))
+        if (!isPosition(position))
+            return;
+
+        // Unmaximize first, tiling-assistant's ordering: allows_resize()
+        // is false while a window is maximized (mutter source,
+        // meta_window_allows_resize), so unmaximizing before the gate
+        // lets the plain check pass instead of needing an exception.
+        window.unmaximize();
+
+        if (!this._tilable(window))
             return;
 
         const workArea = window.get_work_area_for_monitor(window.get_monitor());
@@ -286,8 +295,25 @@ export default class SnapnineExtension extends Extension {
     // size until it holds, then stand down.
     _applySnap(window, target) {
         const apply = () => {
-            window.move_resize_frame(true, target.x, target.y,
-                                     target.width, target.height);
+            const move = () => {
+                // tiling-assistant's current workaround (upstream main):
+                // some terminals only resize but do not move with
+                // move_resize_frame(user_op=true), so move first, then
+                // resize.  user_op=true also avoids multi-monitor
+                // clamping (their issue #137).
+                window.move_frame(true, target.x, target.y);
+                window.move_resize_frame(true, target.x, target.y,
+                                         target.width, target.height);
+            };
+            move();
+            // Verify and retry once: catches windows that ignore the
+            // request entirely (reproduced here with zenity dialogs)
+            // and the partial resize their older code saw with CSD
+            // clients.  Same target, so a retry is harmless.
+            const r = window.get_frame_rect();
+            if (r.x !== target.x || r.y !== target.y ||
+                r.width !== target.width || r.height !== target.height)
+                move();
         };
         const safe = callback => () => {
             try {
@@ -358,13 +384,10 @@ export default class SnapnineExtension extends Extension {
         this._freshTimers.add(id);
     }
 
-    // allows_resize() is false for maximized windows (mutter source:
-    // meta_window_allows_resize), so maximized windows get an explicit
-    // pass here: they can be unmaximized and then resized.
     _tilable(window) {
         return window.get_window_type() === Meta.WindowType.NORMAL &&
                !window.is_attached_dialog() &&
-               (window.allows_resize() || window.is_maximized());
+               window.allows_resize();
     }
 
     // -- D-Bus (scripts and the test suite) ----------------------------
@@ -406,7 +429,13 @@ export default class SnapnineExtension extends Extension {
         const window = this._findByTitle(title);
         if (window) {
             window.unmaximize();
+            // move_frame first, tiling-assistant's workaround (see
+            // apply() in snap), then verify and retry once.
+            window.move_frame(true, x, y);
             window.move_resize_frame(true, x, y, w, h);
+            const r = window.get_frame_rect();
+            if (r.x !== x || r.y !== y || r.width !== w || r.height !== h)
+                window.move_resize_frame(true, x, y, w, h);
         }
         return window !== null;
     }
