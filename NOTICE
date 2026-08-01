@@ -4,6 +4,8 @@ SPDX-License-Identifier: GPL-2.0-only
 
 This project was developed with reference to the implementation of
 tiling-assistant by Leleat (https://github.com/ubuntu/Tiling-Assistant,
-GPL-2.0-only).  Some implementation techniques and API call sequences
-were adapted.  Attribution is provided out of respect for the original
-project and its authors.
+GPL-2.0-or-later, stated in its README and the SPDX header in
+its extension.js).  Some
+implementation techniques and API call sequences were adapted.
+Attribution is provided out of respect for the original project and
+its authors.

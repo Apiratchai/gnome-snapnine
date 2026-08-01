@@ -179,8 +179,8 @@ The live test suite (tests/test.sh) drives the same interface.
 ## License
 
 GPL-2.0-only (see LICENSE).  This project was developed with
-reference to tiling-assistant by Leleat (GPL-2.0-only); the specific
-borrowings are credited in the code comments and in NOTICE.
+reference to tiling-assistant by Leleat (GPL-2.0-or-later); the
+specific borrowings are credited in the code comments and in NOTICE.
 
 ## Adopted from tiling-assistant
 
