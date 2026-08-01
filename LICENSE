@@ -1,7 +1,7 @@
 SPDX-License-Identifier: GPL-2.0-only
 Copyright (C) 2026 Apiratchai Lakkum
 
-This program is free software: you can redistribute it and/or modify
+This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, version 2 of the License.
 
@@ -13,16 +13,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-This work incorporates code and patterns derived from
-tiling-assistant by Leleat (https://github.com/ubuntu/Tiling-Assistant,
-GPL-2.0-only): the move_frame-first workaround and the
-unmaximize-first ordering.  Original work and its copyright remain
-with Leleat and the tiling-assistant contributors; see the code
-comments for the specific borrowings.  The whole work is therefore
-licensed GPL-2.0-only, in line with the license of the incorporated
-parts.
-
 ----------------------------------------------------------------------
+
                     GNU GENERAL PUBLIC LICENSE
                        Version 2, June 1991
 
