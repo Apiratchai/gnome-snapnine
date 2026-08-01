@@ -77,7 +77,7 @@ source.
 ### Way 1: release zip (recommended)
 
 1. Download the zip:
-   https://github.com/Apiratchai/gnome-snapnine/releases/download/v8/snapnine.zip
+   https://github.com/Apiratchai/gnome-snapnine/releases/download/v10/snapnine.zip
 2. Install it:
 
        gnome-extensions install snapnine.zip
@@ -99,3 +99,56 @@ startup). After login, enable it if it did not enable itself:
 
 To remove: `gnome-extensions disable snapnine@github`, then delete
 the folder ~/.local/share/gnome-shell/extensions/snapnine@github.
+
+## Configuration with gsettings
+
+The settings dialog (Extensions → snapnine) covers everything, but
+gsettings works too. The schema lives with the extension, so plain
+gsettings cannot see it; pass --schemadir:
+
+    gsettings --schemadir \
+        ~/.local/share/gnome-shell/extensions/snapnine@github/schemas \
+        set org.gnome.shell.extensions.snapnine snap-left \
+        "['<Super>Left', '<Super>KP_4']"
+
+Every action accepts several accelerators; an empty array disables the
+shortcut. A rebinding that collides with a built-in GNOME shortcut
+(for example Super+2, the app switcher) disables that built-in while
+snapnine is enabled and restores it afterwards. No other part of the
+GNOME configuration is ever modified.
+
+## D-Bus interface
+
+The extension exports org.gnome.Shell.Extensions.Snapnine on the
+session bus at /org/gnome/shell/extensions/snapnine (under the shell's
+own bus name), so windows can be tiled from scripts:
+
+    SnapWindow(title, position)     -> found
+    MoveWindow(title, x, y, w, h)   -> found
+    GetWindowRect(title)            -> "x y w h" | gone
+    GetWindowState(title)           -> normal|minimized|maximized|fullscreen|gone
+    GetMonitorWorkArea(title)       -> "x y w h" | gone
+    SetFullscreen(title, full)      -> found
+    GetMonitors()                   -> count
+
+Position is one of left, right, up, down, top-left, top-right,
+bottom-left, bottom-right, maximize, restore, minimize. tests/test.sh
+drives the same interface.
+
+## Limitations
+
+- The shell scans for extensions only at session start; a new install
+  needs a log out and back in.
+- Other tiling extensions (tiling-assistant, WinTile, ...) grab the
+  same keys; disable them or rebind snapnine.
+- Windows tiled by drag-and-drop keep a mutter tile constraint;
+  snapping them away works, but mutter may re-assert the constraint
+  on later resizes. That is mutter behaviour, not fought.
+- GNOME 50 has no programmatic way to inject key presses from outside
+  the shell, so the live suite verifies geometry and state, not the
+  key grab itself.
+
+## Testing
+
+    make unit    # geometry checks, no shell needed
+    make live    # full suite: real windows, D-Bus, injected keypresses
