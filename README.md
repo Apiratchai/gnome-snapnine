@@ -77,7 +77,7 @@ source.
 ### Way 1: release zip (recommended)
 
 1. Download the zip:
-   https://github.com/Apiratchai/gnome-snapnine/releases/download/v10/snapnine.zip
+   https://github.com/Apiratchai/gnome-snapnine/releases/download/v11/snapnine.zip
 2. Install it:
 
        gnome-extensions install snapnine.zip
@@ -178,22 +178,32 @@ The live test suite (tests/test.sh) drives the same interface.
 
 ## License
 
-GPL-2.0-only (see LICENSE).  Portions derived from tiling-assistant
-(GPL-2.0-only); the specific borrowings are credited in the code
-comments and the LICENSE file.
+GPL-2.0-only (see LICENSE).  This project was developed with
+reference to tiling-assistant by Leleat (GPL-2.0-only); the specific
+borrowings are credited in the code comments and in NOTICE.
+
+## Adopted from tiling-assistant
+
+- **Ignore-move workaround.** Some windows do not follow
+  move_resize_frame(user_op=true) at all. tiling-assistant hit this
+  with GNOME Terminal; we reproduced it with zenity dialogs. Their
+  current workaround (upstream main) is used here: move_frame first,
+  then move_resize_frame, with user_op=true to avoid multi-monitor
+  clamping (their issue #137). On top of that we keep a
+  verify-and-retry-once safety net for windows that ignore the
+  request entirely. The live suite asserts dialogs obey MoveWindow.
+- **Unmaximize-first ordering.** snap() unmaximizes before the resize
+  gate, so the gate needs no maximized-window exception. Their
+  ordering is subtler than the explicit escape hatch we had; we use
+  theirs.
+
+Both are credited to tiling-assistant by Leleat; see NOTICE.
 
 ## Future work
 
-- **Ignore-move workaround (credit: tiling-assistant).** Some windows
-  do not follow move_resize_frame(user_op=true) at all.
-  tiling-assistant hit this with GNOME Terminal; we reproduced it
-  with zenity dialogs. Their current workaround (upstream main) is
-  adopted here: move_frame first, then move_resize_frame, with
-  user_op=true to avoid multi-monitor clamping (their issue #137).
-  On top of that we keep a verify-and-retry-once safety net for
-  windows that ignore the request entirely. The live suite asserts
-  dialogs obey MoveWindow.
-- **Unmaximize-first ordering (adopted from tiling-assistant).**
-  snap() now unmaximizes before the resize gate, so the gate needs no
-  maximized-window exception. Their ordering is subtler than the
-  explicit escape hatch we had; we use theirs.
+- Run the live suite against the new code after the next session
+  restart, to confirm the ignore-move workaround against a real
+  zenity dialog (the test exists; it has not run against the new
+  code yet).
+- Multi-monitor behaviour: only a single monitor has been tested.
+- GNOME 51+ compatibility, when the shell moves on.
