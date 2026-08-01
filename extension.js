@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Apiratchai Lakkum
+// SPDX-License-Identifier: GPL-2.0-only
 // extension.js -- snapnine: nine-position window snapping for GNOME Shell.
 //
 // The focused window is moved and resized to one of nine rectangles on
@@ -14,9 +16,9 @@
 // for as long as this extension is enabled, then restored.  This is the
 // only other schema we ever touch.
 //
-// A small D-Bus interface (org.gnome.Shell.Extensions.Snapnine) exposes
-// the same operations so the extension can be driven and verified from
-// scripts; tests/test.sh uses it.
+// A D-Bus interface (org.gnome.Shell.Extensions.Snapnine) exposes the
+// same operations.  It exists for the test suite (tests/test.sh drives
+// it) and happens to let scripts tile windows too.
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -152,7 +154,7 @@ export default class SnapnineExtension extends Extension {
     // The public API, per gnome-shell source (ui/windowManager.js):
     //   global.display.add_keybinding(name, settings, flags, handler)
     // followed by Main.wm.allowKeybinding(name, modes), without which
-    // the shell's key filter drops the binding.  Mutters's
+    // the shell's key filter drops the binding.  Mutter's
     // meta_prefs_add_keybinding() re-grabs automatically when the
     // settings key changes.
     _bind() {
@@ -229,8 +231,8 @@ export default class SnapnineExtension extends Extension {
         }
 
         // Restore: float the window centered, 3/5 x 4/5 of the work
-        // area.  Deliberately not back to the pre-snap geometry: after
-        // a snap that geometry is half a screen.
+        // area.  Not back to the pre-snap geometry: after a snap that
+        // is half a screen.
         if (position === RESTORE) {
             if (window.is_maximized() || this._previous.has(window)) {
                 const workArea =
@@ -245,7 +247,8 @@ export default class SnapnineExtension extends Extension {
         if (!isPosition(position))
             return;
 
-        // Unmaximize first, tiling-assistant's ordering: allows_resize()
+        // Unmaximize first, tiling-assistant's ordering (their tile(),
+        // by Leleat): allows_resize()
         // is false while a window is maximized (mutter source,
         // meta_window_allows_resize), so unmaximizing before the gate
         // lets the plain check pass instead of needing an exception.
@@ -296,8 +299,9 @@ export default class SnapnineExtension extends Extension {
     _applySnap(window, target) {
         const apply = () => {
             const move = () => {
-                // tiling-assistant's current workaround (upstream main):
-                // some terminals only resize but do not move with
+                // tiling-assistant's current workaround (their tile(),
+                // by Leleat, upstream main): some terminals only
+                // resize but do not move with
                 // move_resize_frame(user_op=true), so move first, then
                 // resize.  user_op=true also avoids multi-monitor
                 // clamping (their issue #137).

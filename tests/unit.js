@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Apiratchai Lakkum
+// SPDX-License-Identifier: GPL-2.0-only
 // unit.js -- geometry tests for snapnine.  Plain gjs, no compositor:
 //
 //     gjs tests/unit.js

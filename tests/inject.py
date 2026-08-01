@@ -1,3 +1,5 @@
+# Copyright (C) 2026 Apiratchai Lakkum
+# SPDX-License-Identifier: GPL-2.0-only
 #!/usr/bin/env python3
 """inject.py -- press a key combo on a virtual uinput keyboard."""
 import sys, time

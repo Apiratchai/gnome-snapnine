@@ -175,3 +175,25 @@ The live test suite (tests/test.sh) drives the same interface.
 
     make unit    # geometry checks, no shell needed
     make live    # full suite: real windows, D-Bus, injected keypresses
+
+## License
+
+GPL-2.0-only (see LICENSE).  Portions derived from tiling-assistant
+(GPL-2.0-only); the specific borrowings are credited in the code
+comments and the LICENSE file.
+
+## Future work
+
+- **Ignore-move workaround (credit: tiling-assistant).** Some windows
+  do not follow move_resize_frame(user_op=true) at all.
+  tiling-assistant hit this with GNOME Terminal; we reproduced it
+  with zenity dialogs. Their current workaround (upstream main) is
+  adopted here: move_frame first, then move_resize_frame, with
+  user_op=true to avoid multi-monitor clamping (their issue #137).
+  On top of that we keep a verify-and-retry-once safety net for
+  windows that ignore the request entirely. The live suite asserts
+  dialogs obey MoveWindow.
+- **Unmaximize-first ordering (adopted from tiling-assistant).**
+  snap() now unmaximizes before the resize gate, so the gate needs no
+  maximized-window exception. Their ordering is subtler than the
+  explicit escape hatch we had; we use theirs.

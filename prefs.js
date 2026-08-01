@@ -1,6 +1,8 @@
+// Copyright (C) 2026 Apiratchai Lakkum
+// SPDX-License-Identifier: GPL-2.0-only
 // prefs.js -- snapnine settings dialog.
 //
-// Lists the ten actions with their current keybindings.  Click a key to
+// Lists the eleven actions with their current keybindings.  Click a key to
 // capture a new one; press Escape to cancel, Backspace to clear (which
 // disables the shortcut).
 
