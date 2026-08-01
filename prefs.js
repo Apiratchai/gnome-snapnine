@@ -1,5 +1,5 @@
 // Copyright (C) 2026 Apiratchai Lakkum
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0-or-later
 // prefs.js -- snapnine settings dialog.
 //
 // Lists the eleven actions with their current keybindings.  Click a key to

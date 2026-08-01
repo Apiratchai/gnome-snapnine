@@ -1,5 +1,5 @@
 # Copyright (C) 2026 Apiratchai Lakkum
-# SPDX-License-Identifier: GPL-2.0-only
+# SPDX-License-Identifier: GPL-2.0-or-later
 #!/usr/bin/env python3
 """A window that maps, then resizes itself late -- mimics Firefox's
 late-geometry behaviour on Wayland."""

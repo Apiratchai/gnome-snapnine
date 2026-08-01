@@ -6,6 +6,7 @@
 #	make disable	disable
 #	make unit	geometry unit tests (no shell needed)
 #	make live	live integration tests (extension must be enabled)
+#	make zip	build snapnine.zip for manual install
 #	make help	this text
 
 UUID    = snapnine@github

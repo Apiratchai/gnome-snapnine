@@ -1,5 +1,5 @@
 // Copyright (C) 2026 Apiratchai Lakkum
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0-or-later
 // rect.js -- nine-position geometry for snapnine.
 //
 // Pure functions, no shell imports.  Every position is a rectangle

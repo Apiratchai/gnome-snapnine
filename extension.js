@@ -1,5 +1,5 @@
 // Copyright (C) 2026 Apiratchai Lakkum
-// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0-or-later
 // extension.js -- snapnine: nine-position window snapping for GNOME Shell.
 //
 // The focused window is moved and resized to one of nine rectangles on
@@ -14,7 +14,7 @@
 // If a position key collides with a built-in GNOME shortcut (the stock
 // Super+arrow tiling, maximize, minimize), the built-in one is disabled
 // for as long as this extension is enabled, then restored.  This is the
-// only other schema we ever touch.
+// only other schemas we ever touch.
 //
 // A D-Bus interface (org.gnome.Shell.Extensions.Snapnine) exposes the
 // same operations.  It exists for the test suite (tests/test.sh drives

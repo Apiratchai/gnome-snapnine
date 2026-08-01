@@ -1,6 +1,6 @@
 gnome-snapnine
 Copyright (C) 2026 Apiratchai Lakkum
-SPDX-License-Identifier: GPL-2.0-only
+SPDX-License-Identifier: GPL-2.0-or-later
 
 This project was developed with reference to the implementation of
 tiling-assistant by Leleat (https://github.com/ubuntu/Tiling-Assistant,
