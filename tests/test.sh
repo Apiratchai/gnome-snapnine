@@ -8,9 +8,10 @@
 #   - a graphical session (spawns kitty and zenity windows)
 #
 # Drives the extension over its D-Bus interface and verifies exact
-# geometry for every position, plus the edge cases:
-#   toggle-restore, maximize->snap, minimize, fullscreen guard,
-#   dialog guard, unknown window, builtin-shortcut shield, rebind.
+# geometry for every position, plus: toggle-restore, restore,
+# maximize->snap, minimize, fullscreen and dialog guards, unknown
+# window, builtin conflict, rebind, multi-binding, real keypresses
+# (uinput), and the late client resize.
 #
 # Exit status: 0 if all tests pass, 1 otherwise.
 
@@ -315,7 +316,7 @@ check "unknown window reports false" "false" "$found"
 # ------------------------------------------------------- configuration
 
 # multi-binding: two accelerators for one action; the second must work
-# (and the builtin app-switcher Super+2 must be shielded away)
+# (the builtin app-switcher Super+2 must not win the key)
 orig_down=$($GS get org.gnome.shell.extensions.snapnine snap-down)
 $GS set org.gnome.shell.extensions.snapnine snap-down "['<Super>Down', '<Super>2']"
 sleep 0.5
@@ -348,20 +349,19 @@ fi
 $GS set org.gnome.shell.extensions.snapnine snap-left "$orig_left"
 sleep 0.5
 
-# shield: a colliding built-in shortcut is disabled, then restored
+# conflict: a colliding built-in shortcut is left untouched (the
+# conflict itself is reported via notification, not asserted here)
 orig_builtin=$(gsettings get org.gnome.mutter.keybindings toggle-tiled-left)
 gsettings set org.gnome.mutter.keybindings toggle-tiled-left "['<Super>Left']"
 gnome-extensions disable "$EXT" >/dev/null 2>&1
 sleep 1
 gnome-extensions enable "$EXT" >/dev/null 2>&1
 sleep 1
-check "builtin shortcut shielded" "@as []" \
-    "$(gsettings get org.gnome.mutter.keybindings toggle-tiled-left)"
-gnome-extensions disable "$EXT" >/dev/null 2>&1
-sleep 1
-check "builtin shortcut restored" "['<Super>Left']" \
+check "builtin untouched on conflict" "['<Super>Left']" \
     "$(gsettings get org.gnome.mutter.keybindings toggle-tiled-left)"
 gsettings set org.gnome.mutter.keybindings toggle-tiled-left "$orig_builtin"
+gnome-extensions disable "$EXT" >/dev/null 2>&1
+sleep 1
 gnome-extensions enable "$EXT" >/dev/null 2>&1
 sleep 1
 

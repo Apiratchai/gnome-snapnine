@@ -12,10 +12,9 @@
 // other non-normal windows alone; maximize, restore, and minimize act
 // on whatever window is focused.
 //
-// If a position key collides with a built-in GNOME shortcut (the stock
-// Super+arrow tiling, maximize, minimize), the built-in one is disabled
-// for as long as this extension is enabled, then restored.  This is the
-// only other schemas we ever touch.
+// If a shortcut is already taken by a built-in GNOME keybinding, the
+// key is left alone and the conflict is reported instead.  No other
+// schema is ever touched.
 //
 // A D-Bus interface (org.gnome.Shell.Extensions.Snapnine) exposes the
 // same operations.  It exists for the test suite (tests/test.sh drives
@@ -46,18 +45,18 @@ const ALL_KEYS = Object.keys(KEY_TO_ACTION);
 
 const DBUS_PATH = '/org/gnome/shell/extensions/snapnine';
 // Built-in shortcuts that may collide with ours.
-// [schema, key]; value is an array of accelerators.
+// [schema, key, human name]; value is an array of accelerators.
 const BUILTIN_KEYS = [
-    ['org.gnome.mutter.keybindings', 'toggle-tiled-left'],
-    ['org.gnome.mutter.keybindings', 'toggle-tiled-right'],
-    ['org.gnome.desktop.wm.keybindings', 'maximize'],
-    ['org.gnome.desktop.wm.keybindings', 'minimize'],
-    ['org.gnome.desktop.wm.keybindings', 'unmaximize'],
-    ['org.gnome.desktop.wm.keybindings', 'toggle-maximized'],
-    // Super+1..9 switch applications; the shield must cover them too,
-    // or a user-repurposed number key would lose to the builtin.
+    ['org.gnome.mutter.keybindings', 'toggle-tiled-left', 'Tiled left'],
+    ['org.gnome.mutter.keybindings', 'toggle-tiled-right', 'Tiled right'],
+    ['org.gnome.desktop.wm.keybindings', 'maximize', 'Maximize'],
+    ['org.gnome.desktop.wm.keybindings', 'minimize', 'Minimize'],
+    ['org.gnome.desktop.wm.keybindings', 'unmaximize', 'Unmaximize'],
+    ['org.gnome.desktop.wm.keybindings', 'toggle-maximized', 'Toggle maximized'],
+    // Super+1..9 switch applications; they count as conflicts too.
     ...Array.from({length: 9}, (_, i) =>
-        ['org.gnome.shell.keybindings', `switch-to-application-${i + 1}`]),
+        ['org.gnome.shell.keybindings',
+         `switch-to-application-${i + 1}`, `Switch to application ${i + 1}`]),
 ];
 
 const IFACE_XML = `
@@ -104,7 +103,6 @@ export default class SnapnineExtension extends Extension {
         this._settings = this.getSettings();
         this._bindings = [];
         this._previous = new WeakMap();   // window -> geometry before last snap
-        this._shielded = [];              // built-in shortcuts we disabled
         this._exported = false;
         this._freshTimers = new Set();    // pending settle timers
         this._watchers = new Map();       // window -> size watcher id
@@ -112,16 +110,12 @@ export default class SnapnineExtension extends Extension {
         this._createdId = global.display.connect('window-created',
             (_display, window) => this._createdAt.set(window, Date.now()));
 
-        this._bind();
-        this._shield();
+        this._rebind();
         this._exportDbus();
 
-        // mutter re-grabs each binding itself when its settings key
-        // changes; we only need to re-evaluate the shield.
-        this._changedId = this._settings.connect('changed', () => {
-            this._unshield();
-            this._shield();
-        });
+        // A changed shortcut is re-grabbed by mutter itself; we only
+        // re-check conflicts and re-bind the keys that were skipped.
+        this._changedId = this._settings.connect('changed', () => this._rebind());
 
         log('snapnine: enabled');
     }
@@ -142,7 +136,6 @@ export default class SnapnineExtension extends Extension {
             GLib.source_remove(id);
         this._watchers.clear();
         this._unbind();
-        this._unshield();
         if (this._exported) {
             this._dbusImpl.unexport();
             this._exported = false;
@@ -158,8 +151,50 @@ export default class SnapnineExtension extends Extension {
     // the shell's key filter drops the binding.  Mutter's
     // meta_prefs_add_keybinding() re-grabs automatically when the
     // settings key changes.
-    _bind() {
+
+    // -- key conflicts ------------------------------------------------
+
+    // map our key -> [conflicting accelerator, human name of its owner]
+    _conflicts() {
+        const conflicts = new Map();
+        const settingsBySchema = new Map();
         for (const key of ALL_KEYS) {
+            for (const accel of this._settings.get_strv(key)) {
+                for (const [schemaId, builtinKey, name] of BUILTIN_KEYS) {
+                    let settings = settingsBySchema.get(schemaId);
+                    if (!settings) {
+                        settings = new Gio.Settings({schema_id: schemaId});
+                        settingsBySchema.set(schemaId, settings);
+                    }
+                    if (settings.get_strv(builtinKey).includes(accel) &&
+                        !conflicts.has(key))
+                        conflicts.set(key, [accel, name]);
+                }
+            }
+        }
+        return conflicts;
+    }
+
+    // Tell the user which key is taken and by what.  The builtin is
+    // never touched; the user decides which side to rebind.
+    _notifyConflicts(conflicts) {
+        const taken = [...conflicts.entries()]
+            .map(([key, [accel, name]]) => `${accel} (${name})`)
+            .join(', ');
+        log(`snapnine: not bound, key already in use: ${taken}`);
+        Main.notify('snapnine',
+            `Not bound, key already in use: ${taken}. ` +
+            'Rebind in Extensions → snapnine or in Settings → Keyboard.');
+    }
+
+    // Bind what is not already taken by a builtin, and report the
+    // rest.  Builtins are never modified.
+    _rebind() {
+        this._unbind();
+        const conflicts = this._conflicts();
+        for (const key of ALL_KEYS) {
+            if (conflicts.has(key))
+                continue;
             const action = global.display.add_keybinding(
                 key, this._settings,
                 Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
@@ -172,6 +207,8 @@ export default class SnapnineExtension extends Extension {
             Main.wm.allowKeybinding(key, Shell.ActionMode.NORMAL);
             this._bindings.push(key);
         }
+        if (conflicts.size)
+            this._notifyConflicts(conflicts);
     }
 
     _unbind() {
@@ -181,35 +218,6 @@ export default class SnapnineExtension extends Extension {
         }
         this._bindings = [];
     }
-
-    // -- built-in shortcut shield --------------------------------------
-
-    // Disable any built-in shortcut that uses one of our accelerators.
-    // Remember the original values; disable() restores them.
-    _shield() {
-        const ours = ALL_KEYS.flatMap(k => this._settings.get_strv(k));
-        for (const [schemaId, key] of BUILTIN_KEYS) {
-            const settings = new Gio.Settings({schema_id: schemaId});
-            const accels = settings.get_strv(key);
-            if (!accels.some(a => ours.includes(a)))
-                continue;
-            this._shielded.push([schemaId, key, accels]);
-            settings.set_strv(key, []);
-            log(`snapnine: disabled built-in shortcut ${schemaId} ${key}`);
-        }
-    }
-
-    _unshield() {
-        for (const [schemaId, key, original] of this._shielded) {
-            const settings = new Gio.Settings({schema_id: schemaId});
-            // Only restore if the user hasn't changed it meanwhile.
-            if (settings.get_strv(key).length === 0)
-                settings.set_strv(key, original);
-        }
-        this._shielded = [];
-    }
-
-    // -- snapping ------------------------------------------------------
 
     // snap(window, position) -- apply an action to a window.
     // A null window (nothing focused) is a no-op.

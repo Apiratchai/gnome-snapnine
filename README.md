@@ -3,9 +3,8 @@
 Window snapping for GNOME Shell, designed around the numpad.
 
 Nine positions: halves, quarters, maximize (the whole work area),
-plus restore (float
-centered) and minimize. Every action has its own shortcut, and you can
-give each action several shortcuts.
+plus restore (float centered) and minimize. Every action has its own
+shortcut, and you can give each action several shortcuts.
 
 ## The numpad layout
 
@@ -105,8 +104,8 @@ the folder ~/.local/share/gnome-shell/extensions/snapnine@github.
 ## Configuration with gsettings
 
 The settings dialog (Extensions → snapnine) covers everything, but
-gsettings works too. The schema lives with the extension, so plain
-gsettings cannot see it, so pass --schemadir:
+gsettings works too. The schema lives with the extension, and plain
+gsettings cannot see it. Pass --schemadir:
 
     gsettings --schemadir \
         ~/.local/share/gnome-shell/extensions/snapnine@github/schemas \
@@ -114,10 +113,13 @@ gsettings cannot see it, so pass --schemadir:
         "['<Super>Left', '<Super>KP_4']"
 
 Every action accepts several accelerators. An empty array disables the
-shortcut. A rebinding that collides with a built-in GNOME shortcut
-(for example Super+2, the app switcher) disables that built-in while
-snapnine is enabled. Disabling snapnine restores those built-ins.
-Nothing else in the GNOME configuration is ever touched.
+shortcut. If a shortcut is already taken by a built-in GNOME
+keybinding (for example Super+2, the app switcher), snapnine leaves
+it alone and tells you which app owns the key. Rebind snapnine's
+shortcut or change the other one. If an action has several
+accelerators and one is taken, the whole action is skipped until the
+conflict is resolved. No other part of the GNOME configuration is
+ever modified.
 
 ## Scripting (D-Bus)
 
