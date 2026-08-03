@@ -416,6 +416,32 @@ else
     echo "SKIP  late-resize test (python3-gi not installed)"
 fi
 
+
+# ------------------------------------------------- unmap/remap re-place
+
+# A client that unmaps and remaps (Firefox during page load) is
+# re-placed by mutter at the default centered position, wiping the
+# snap.  The watcher must re-assert.  remap.py hides and shows its
+# window 3s after starting.
+if python3 -c 'import gi; gi.require_version("Gtk", "4.0")' >/dev/null 2>&1; then
+    python3 "$(dirname "$0")/remap.py" >/dev/null 2>&1 &
+    sleep 2
+    if [ "$(call GetWindowState snapnine-remap | value)" != gone ]; then
+        wa=$(call GetMonitorWorkArea snapnine-remap | value)
+        set -- $wa
+        expect_left="$1 $2 $(( $3 / 2 )) $4"
+        call SnapWindow snapnine-remap left >/dev/null
+        sleep 4.5     # past the remap at t+3s
+        check "remap does not re-place the snap" "$expect_left" \
+            "$(call GetWindowRect snapnine-remap | value)"
+    else
+        bad "remap window never appeared"
+    fi
+    pkill -f "remap.p[y]" 2>/dev/null
+else
+    echo "SKIP  remap test (python3-gi not installed)"
+fi
+
 pkill -f "snapnine-test-" 2>/dev/null
 pkill -f snapnine-dialog 2>/dev/null
 

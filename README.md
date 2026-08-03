@@ -56,9 +56,10 @@ this because mutter has an internal tile constraint, which extensions
 cannot use.
 
 gnome-snapnine works around it from the outside: it waits for the
-window to settle before snapping, then watches the size and re-applies
-the snap if the app overrides it. The window always ends up where you
-told it to go.
+window to settle before snapping, then watches the geometry and
+re-applies the snap if the app overrides it, including when a window
+unmaps and remaps (mutter re-places remapped windows at the center).
+The window always ends up where you told it to go.
 
 ## Honest notes
 

@@ -301,10 +301,12 @@ export default class SnapnineExtension extends Extension {
     //
     // On Wayland the client is authoritative for its own size: a late
     // client resize (session restore, content load) can override our
-    // snap even after it applied cleanly.  Stock tiling survives this
-    // via a mutter tile constraint that is not exposed to extensions,
-    // so we emulate it: watch the window and re-assert the target
-    // size until it holds, then stand down.
+    // snap even after it applied cleanly.  And a client that unmaps
+    // and remaps (Firefox during page load) is re-placed by mutter at
+    // the default centered position, wiping our geometry.  Stock
+    // tiling survives both via a mutter tile constraint that is not
+    // exposed to extensions, so we emulate it: watch the window and
+    // re-assert the target rect until it holds, then stand down.
     _applySnap(window, target) {
         const apply = () => {
             const move = () => {
@@ -343,18 +345,25 @@ export default class SnapnineExtension extends Extension {
 
         const fresh = (Date.now() - (this._createdAt.get(window) ?? 0)) < 3000;
 
-        // Re-assert the size until it holds for three consecutive
-        // checks; give up after a few seconds so a deliberate user
-        // resize is never fought for long.  Position changes are not
-        // watched: only the client can fight us on size.
+        // Re-assert the geometry until it holds for three consecutive
+        // checks.  The whole rect is watched, not just the size: a
+        // client that unmaps and remaps (Firefox during page load)
+        // gets re-placed by mutter at the default centered position,
+        // and only a full-rect check catches that.  If the user grabs
+        // the window, their intent wins and we stand down.
         const watch = () => {
             let stable = 0;
             let ticks = 0;
-            const cap = fresh ? 20 : 5;     // 300 ms per tick
+            const cap = 40;     // 300 ms per tick, 12 s total
             const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, safe(() => {
                 const r = window.get_frame_rect();
                 ticks++;
-                if (r.width === target.width && r.height === target.height) {
+                if (global.display.is_grabbed()) {
+                    this._watchers.delete(window);
+                    return GLib.SOURCE_REMOVE;
+                }
+                if (r.x === target.x && r.y === target.y &&
+                    r.width === target.width && r.height === target.height) {
                     if (++stable >= 3 || ticks >= cap) {
                         this._watchers.delete(window);
                         return GLib.SOURCE_REMOVE;
