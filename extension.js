@@ -104,7 +104,7 @@ export default class SnapnineExtension extends Extension {
         this._bindings = [];
         this._previous = new WeakMap();   // window -> geometry before last snap
         this._exported = false;
-        this._freshTimers = new Set();    // pending settle timers
+        this._settleTimers = new Map();   // window -> pending settle timer id
         this._watchers = new Map();       // window -> size watcher id
         this._createdAt = new WeakMap();  // window -> creation time
         this._createdId = global.display.connect('window-created',
@@ -129,9 +129,9 @@ export default class SnapnineExtension extends Extension {
             global.display.disconnect(this._createdId);
             this._createdId = 0;
         }
-        for (const id of this._freshTimers)
+        for (const id of this._settleTimers.values())
             GLib.source_remove(id);
-        this._freshTimers.clear();
+        this._settleTimers.clear();
         for (const id of this._watchers.values())
             GLib.source_remove(id);
         this._watchers.clear();
@@ -370,10 +370,17 @@ export default class SnapnineExtension extends Extension {
             }
         };
 
-        // A new snap supersedes any watcher on this window.
-        const old = this._watchers.get(window);
-        if (old)
-            GLib.source_remove(old);
+        // A new snap supersedes any watcher and pending settle timer
+        // on this window.  Rapid alternation (left, right, left...)
+        // otherwise leaves stale settle timers alive; each applies
+        // its old target when it fires, flipping the window back and
+        // forth on its own.
+        const oldWatcher = this._watchers.get(window);
+        if (oldWatcher)
+            GLib.source_remove(oldWatcher);
+        const oldSettle = this._settleTimers.get(window);
+        if (oldSettle)
+            GLib.source_remove(oldSettle);
 
         const fresh = (Date.now() - (this._createdAt.get(window) ?? 0)) < 3000;
 
@@ -455,7 +462,7 @@ export default class SnapnineExtension extends Extension {
             const r = window.get_frame_rect();
             const current = `${r.x},${r.y},${r.width},${r.height}`;
             if (previous === current || ++ticks >= 15) {
-                this._freshTimers.delete(id);
+                this._settleTimers.delete(window);
                 apply();
                 watch();
                 return GLib.SOURCE_REMOVE;
@@ -463,7 +470,7 @@ export default class SnapnineExtension extends Extension {
             previous = current;
             return GLib.SOURCE_CONTINUE;
         }));
-        this._freshTimers.add(id);
+        this._settleTimers.set(window, id);
     }
 
     _tilable(window) {
