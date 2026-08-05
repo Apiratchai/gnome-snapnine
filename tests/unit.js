@@ -6,7 +6,7 @@
 //
 // Exits non-zero on any failure.
 
-import {POSITIONS, isPosition, rect, eq, floatRect} from '../rect.js';
+import {POSITIONS, isPosition, rect, eq, floatRect, gridRect} from '../rect.js';
 import system from 'system';
 
 let pass = 0;
@@ -91,6 +91,16 @@ check('floatRect', eq(floatRect(WA),
     {x: 384, y: 133, width: 1152, height: 841}));
 check('floatRect odd work area', eq(floatRect({x: 0, y: 0, width: 1921, height: 1053}),
     {x: 384, y: 105, width: 1152, height: 842}));
+
+// gridRect: 10 columns tile the work area exactly.
+const g10 = [...Array(10).keys()].map(c => gridRect(WA, 10, 1, c, 0));
+check('gridRect 10 columns tile exactly',
+    g10[0].x === 0 && g10[9].x + g10[9].width === WA.width &&
+    g10.every((r, i) => i === 0 || r.x === g10[i - 1].x + g10[i - 1].width));
+check('gridRect last column absorbs remainder',
+    g10[9].width === WA.width - 9 * Math.floor(WA.width / 10));
+check('gridRect rows', eq(gridRect(WA, 2, 4, 0, 3),
+    {x: 0, y: 28 + 3 * Math.floor(1052 / 4), width: 960, height: 1052 - 3 * Math.floor(1052 / 4)}));
 
 print('');
 print(`${pass} passed, ${fail} failed`);

@@ -59,6 +59,11 @@
       <summary>Restore</summary>
       <description>Unmaximize the focused window and float it centered at 3/5 x 4/5 of the work area.  An empty array disables the shortcut.</description>
     </key>
+    <key name="snap-layout" type="as">
+      <default><![CDATA[['<Super>g']]]></default>
+      <summary>Show layout grid</summary>
+      <description>Experimental: show an interactive grid over the work area; clicking a cell snaps the focused window into it.  An empty array disables the shortcut.</description>
+    </key>
     <key name="snap-minimize" type="as">
       <default><![CDATA[['<Super>h']]]></default>
       <summary>Minimize</summary>

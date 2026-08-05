@@ -26,6 +26,7 @@ const ACTIONS = [
     ['snap-maximize', 'Maximize'],
     ['snap-restore', 'Restore / float centered'],
     ['snap-minimize', 'Minimize'],
+    ['snap-layout', 'Show layout grid (experimental)'],
 ];
 
 // One row: action name + a button showing the current shortcut.

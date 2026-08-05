@@ -66,6 +66,21 @@ export function eq(a, b) {
            a.width === b.width && a.height === b.height;
 }
 
+// gridRect(workArea, columns, rows, col, row) -- one cell of an
+// N-column x M-row grid over the work area.  The last column and row
+// absorb the remainder so the grid tiles exactly (same rule as the
+// halves).  Used by the experimental layout overlay (branch-only).
+export function gridRect(wa, columns, rows, col, row) {
+    const w = Math.floor(wa.width / columns);
+    const h = Math.floor(wa.height / rows);
+    return {
+        x: wa.x + col * w,
+        y: wa.y + row * h,
+        width: col === columns - 1 ? wa.width - col * w : w,
+        height: row === rows - 1 ? wa.height - row * h : h,
+    };
+}
+
 // floatRect(workArea) -- the "restore" rectangle: a centered floating
 // window, 3/5 width by 4/5 height of the work area.  Floors keep the
 // arithmetic identical to shell integer division (see tests/test.sh).

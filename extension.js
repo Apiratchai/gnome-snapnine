@@ -29,6 +29,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {POSITIONS, isPosition, rect, eq, floatRect} from './rect.js';
+import {LayoutOverlay} from './overlay.js';
 
 const MINIMIZE = 'minimize';
 const RESTORE = 'restore';
@@ -40,6 +41,7 @@ const KEY_TO_ACTION = Object.fromEntries([
     ...POSITIONS.map(p => [`snap-${p}`, p]),
     ['snap-minimize', MINIMIZE],
     ['snap-restore', RESTORE],
+    ['snap-layout', 'layout'],   // experimental, branch-only
 ]);
 const ALL_KEYS = Object.keys(KEY_TO_ACTION);
 
@@ -95,6 +97,11 @@ const IFACE_XML = `
     <method name="GetMonitors">
       <arg type="i" name="count" direction="out"/>
     </method>
+    <method name="ShowLayoutOverlay">
+      <arg type="i" name="columns" direction="in"/>
+      <arg type="i" name="rows" direction="in"/>
+      <arg type="b" name="shown" direction="out"/>
+    </method>
   </interface>
 </node>`;
 
@@ -135,6 +142,8 @@ export default class SnapnineExtension extends Extension {
         for (const id of this._watchers.values())
             GLib.source_remove(id);
         this._watchers.clear();
+        if (this._overlay)
+            this._overlay.destroy();
         this._unbind();
         if (this._exported) {
             this._dbusImpl.unexport();
@@ -262,6 +271,15 @@ export default class SnapnineExtension extends Extension {
         // Restore: float the window centered, 3/5 x 4/5 of the work
         // area.  Not back to the pre-snap geometry: after a snap that
         // is half a screen.
+        // Experimental: show or cancel the interactive layout grid.
+        if (position === 'layout') {
+            if (this._overlay)
+                this._overlay.destroy();
+            else
+                this._showOverlay(3, 3);
+            return;
+        }
+
         if (position === RESTORE) {
             // Also fire for mutter-tiled windows (builtin Super+arrow):
             // they hold a tile constraint, which may re-assert on
@@ -588,5 +606,24 @@ export default class SnapnineExtension extends Extension {
 
     GetMonitors() {
         return global.display.get_n_monitors();
+    }
+
+    ShowLayoutOverlay(columns, rows) {
+        this._showOverlay(columns, rows);
+        return this._overlay !== null;
+    }
+
+    // Experimental, branch-only: interactive grid overlay.
+    _showOverlay(columns, rows) {
+        if (this._overlay)
+            this._overlay.destroy();
+        this._overlay = new LayoutOverlay(columns, rows,
+            target => {
+                const window = global.display.focus_window;
+                if (window) {
+                    window.unmaximize();
+                    this._applySnap(window, target);
+                }
+            });
     }
 }
