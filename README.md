@@ -25,12 +25,33 @@ prefs dialog; the tests then cover it.
 | left / right half | Super+Left / Super+Right       |
 | top / bottom half | Super+KP_8 / Super+KP_2        |
 | quarters          | Super+KP_7, KP_9, KP_1, KP_3   |
-| maximize          | Super+Up                       |
+| maximize          | Super+Up, Super+KP_5           |
 | restore (float)   | Super+Down                     |
 | minimize          | Super+h                        |
 
 Rebind everything in the settings dialog or with gsettings. Pressing a
 position key again restores the previous geometry.
+
+## Layout overlay (experimental)
+
+Save your window arrangement as a preset, then snap any window into one
+of the captured positions.
+
+![Demo](assets/demo.gif)
+
+1. Arrange windows on screen however you like
+2. Press **capture** (bind `snap-capture-layout` in settings) — the overlay
+   shows every visible window position as a numbered cell
+3. Click **Preset 1/2/3** (or press 1/2/3) to save
+4. Press your bound **layout key** (`snap-layout-1/2/3`) — saved positions
+   appear as numbered clickable cells
+5. Click a cell, press its number (1–9), or navigate with **arrow keys +
+   Enter** — the focused window snaps there
+
+![Settings](assets/extension-settings.png)
+
+The three layout presets and the capture shortcut have **no default
+keybindings** — bind them in Extensions → snapnine → Settings.
 
 ## Why this exists
 

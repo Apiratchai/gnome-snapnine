@@ -26,6 +26,10 @@ const ACTIONS = [
     ['snap-maximize', 'Maximize'],
     ['snap-restore', 'Restore / float centered'],
     ['snap-minimize', 'Minimize'],
+    ['snap-layout-1', 'Activate layout preset 1'],
+    ['snap-layout-2', 'Activate layout preset 2'],
+    ['snap-layout-3', 'Activate layout preset 3'],
+    ['snap-capture-layout', 'Capture layout (save window positions)'],
 ];
 
 // One row: action name + a button showing the current shortcut.
@@ -100,13 +104,56 @@ class ShortcutRow extends Adw.ActionRow {
     }
 });
 
+// Read-only row showing how many positions are saved in a preset,
+// with a button to clear it.
+const PresetStatusRow = GObject.registerClass(
+class PresetStatusRow extends Adw.ActionRow {
+    _init(settings, key, title) {
+        super._init({title});
+        this._settings = settings;
+        this._key = key;
+
+        this._label = new Gtk.Label({halign: Gtk.Align.START});
+        this._update();
+        this.add_suffix(this._label);
+
+        const clearBtn = new Gtk.Button({
+            label: 'Clear',
+            css_classes: ['flat'],
+            sensitive: false,
+        });
+        clearBtn.connect('clicked', () => {
+            this._settings.set_strv(this._key, []);
+            this._update();
+        });
+        this.add_suffix(clearBtn);
+
+        settings.connect(`changed::${key}`, () => {
+            this._update();
+            clearBtn.sensitive = this._settings.get_strv(this._key).length > 0;
+        });
+
+        // Set initial clear button sensitivity.
+        clearBtn.sensitive = this._settings.get_strv(this._key).length > 0;
+    }
+
+    _update() {
+        const count = this._settings.get_strv(this._key).length;
+        this._label.label = count
+            ? `${count} position${count > 1 ? 's' : ''}`
+            : 'empty';
+    }
+});
+
 export default class SnapninePrefs extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         const group = new Adw.PreferencesGroup({
             title: 'Snap positions',
             description: 'Each action has its own shortcut. ' +
-                'Pressing a position key again restores the previous geometry.',
+                'Pressing a position key again restores the previous geometry.\n\n' +
+                'Note: numpad keys may show alternate names (e.g., KP_2 as KP_Down) ' +
+                'depending on NumLock state — the binding works correctly regardless.',
         });
 
         for (const [key, title] of ACTIONS) {
@@ -115,8 +162,20 @@ export default class SnapninePrefs extends ExtensionPreferences {
             settings.connect(`changed::${key}`, () => row._updateLabel());
         }
 
+        const presetGroup = new Adw.PreferencesGroup({
+            title: 'Layout presets',
+            description: 'Arrange windows on screen, then press the capture ' +
+                'shortcut to save their positions.  Press the layout shortcut ' +
+                'to apply a saved preset.',
+        });
+        for (let i = 1; i <= 3; i++) {
+            const key = `layout-preset-${i}`;
+            presetGroup.add(new PresetStatusRow(settings, key, `Preset ${i}`));
+        }
+
         const page = new Adw.PreferencesPage();
         page.add(group);
+        page.add(presetGroup);
         window.add(page);
     }
 }

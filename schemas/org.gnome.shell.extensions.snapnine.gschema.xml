@@ -50,7 +50,7 @@
       <description>Move and resize the focused window to the bottom-right quarter of the work area.  An empty array disables the shortcut.</description>
     </key>
     <key name="snap-maximize" type="as">
-      <default><![CDATA[['<Super>Up']]]></default>
+      <default><![CDATA[['<Super>Up', '<Super>KP_5']]]></default>
       <summary>Maximize</summary>
       <description>Maximize the focused window.  An empty array disables the shortcut.</description>
     </key>
@@ -58,6 +58,41 @@
       <default><![CDATA[['<Super>Down']]]></default>
       <summary>Restore</summary>
       <description>Unmaximize the focused window and float it centered at 3/5 x 4/5 of the work area.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-layout-1" type="as">
+      <default>[]</default>
+      <summary>Activate layout preset 1</summary>
+      <description>Show saved window positions from preset 1 as clickable targets.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-layout-2" type="as">
+      <default>[]</default>
+      <summary>Activate layout preset 2</summary>
+      <description>Show saved window positions from preset 2 as clickable targets.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-layout-3" type="as">
+      <default>[]</default>
+      <summary>Activate layout preset 3</summary>
+      <description>Show saved window positions from preset 3 as clickable targets.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="snap-capture-layout" type="as">
+      <default><![CDATA[['<Super><Shift>g']]]></default>
+      <summary>Capture layout</summary>
+      <description>Capture the positions of all visible windows on the current monitor and save them as a layout preset.  An empty array disables the shortcut.</description>
+    </key>
+    <key name="layout-preset-1" type="as">
+      <default>[]</default>
+      <summary>Layout preset 1</summary>
+      <description>Saved window positions for layout preset 1.  Each entry is 'x,y,w,h' relative to the work area.  Use the capture shortcut to populate.</description>
+    </key>
+    <key name="layout-preset-2" type="as">
+      <default>[]</default>
+      <summary>Layout preset 2</summary>
+      <description>Saved window positions for layout preset 2.  Each entry is 'x,y,w,h' relative to the work area.</description>
+    </key>
+    <key name="layout-preset-3" type="as">
+      <default>[]</default>
+      <summary>Layout preset 3</summary>
+      <description>Saved window positions for layout preset 3.  Each entry is 'x,y,w,h' relative to the work area.</description>
     </key>
     <key name="snap-minimize" type="as">
       <default><![CDATA[['<Super>h']]]></default>
