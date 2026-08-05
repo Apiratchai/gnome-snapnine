@@ -184,9 +184,10 @@ The live test suite (tests/test.sh) drives the same interface.
 
 ## License
 
-GPL-2.0-or-later (see LICENSE).  This project was developed with
-reference to tiling-assistant by Leleat (GPL-2.0-or-later); the
-specific borrowings are credited in the code comments and in NOTICE.
+GPL-2.0-or-later (see [LICENSE](LICENSE)).  This project was
+developed with reference to [tiling-assistant](https://github.com/ubuntu/Tiling-Assistant)
+by Leleat (GPL-2.0-or-later); the specific borrowings are credited in
+the code comments and in [NOTICE](NOTICE).
 SPDX headers mark all source and build files; metadata.json is the
 one exception because JSON cannot carry comments.
 

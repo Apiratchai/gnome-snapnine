@@ -82,12 +82,22 @@ wait_window() {
 }
 
 # spawn_window <id> -- a fresh terminal titled snapnine-test-<id>
+# Any terminal with a title flag works; pick the first one present.
+# Tests must not depend on a specific terminal being installed.
 spawn_window() {
-    if command -v kitty >/dev/null 2>&1; then
-        kitty --title "snapnine-test-$1" >/dev/null 2>&1 &
-    else
-        ptyxis -T "snapnine-test-$1" >/dev/null 2>&1 &
-    fi
+    for term in kitty ptyxis gnome-terminal xterm; do
+        if command -v $term >/dev/null 2>&1; then
+            case $term in
+                kitty)           $term --title "snapnine-test-$1" >/dev/null 2>&1 & ;;
+                ptyxis)          $term -T "snapnine-test-$1" >/dev/null 2>&1 & ;;
+                gnome-terminal)  $term --title="snapnine-test-$1" >/dev/null 2>&1 & ;;
+                xterm)           $term -title "snapnine-test-$1" >/dev/null 2>&1 & ;;
+            esac
+            return 0
+        fi
+    done
+    echo "FAIL  no terminal found (kitty, ptyxis, gnome-terminal, xterm)"
+    return 1
 }
 
 kill_window() {
