@@ -64,8 +64,9 @@ The window always ends up where you told it to go.
 ## Honest notes
 
 - The code was written with DeepSeek Flash (0731) in about one hour,
-  for $0.361. I am not a maintainer and do not plan to be. Expect
-  rough edges.
+  for $0.361. Keeping it alive since has cost several times that, and
+  counting. Building to just work is cheap; maintaining is pricier.
+  I am not a maintainer and do not plan to be. Expect rough edges.
 - There is a test suite to compensate: 28 geometry unit tests (plain
   gjs) and a live suite that drives real windows over D-Bus and
   presses real keys through uinput. Run `make unit` and `make live`.
