@@ -309,6 +309,12 @@ export default class SnapnineExtension extends Extension {
     // re-assert the target rect until it holds, then stand down.
     _applySnap(window, target) {
         const apply = () => {
+            // A window mid-unmap/remap has no monitor; moving a
+            // window in that state crashes mutter (mutter #1600,
+            // meta_window_update_monitor).  Skip and let the watcher
+            // retry once the window is mapped again.
+            if (!window.mapped() || window.get_monitor() === -1)
+                return;
             const move = () => {
                 // tiling-assistant's current workaround (their tile(),
                 // by Leleat, upstream main): some terminals only
@@ -361,6 +367,16 @@ export default class SnapnineExtension extends Extension {
                 if (global.display.is_grabbed()) {
                     this._watchers.delete(window);
                     return GLib.SOURCE_REMOVE;
+                }
+                // Mid-unmap/remap: wait, do not count stability, and
+                // do not apply (that is what crashed mutter).
+                if (!window.mapped() || window.get_monitor() === -1) {
+                    stable = 0;
+                    if (ticks >= cap) {
+                        this._watchers.delete(window);
+                        return GLib.SOURCE_REMOVE;
+                    }
+                    return GLib.SOURCE_CONTINUE;
                 }
                 if (r.x === target.x && r.y === target.y &&
                     r.width === target.width && r.height === target.height) {
@@ -449,7 +465,7 @@ export default class SnapnineExtension extends Extension {
 
     MoveWindow(title, x, y, w, h) {
         const window = this._findByTitle(title);
-        if (window) {
+        if (window && (window.mapped() && window.get_monitor() !== -1)) {
             window.unmaximize();
             // move_frame first, tiling-assistant's workaround (see
             // apply() in snap), then verify and retry once.
@@ -458,6 +474,9 @@ export default class SnapnineExtension extends Extension {
             const r = window.get_frame_rect();
             if (r.x !== x || r.y !== y || r.width !== w || r.height !== h)
                 window.move_resize_frame(true, x, y, w, h);
+        } else if (window) {
+            // Not a silent no-op: the test suite must see the skip.
+            log(`snapnine: MoveWindow skipped, ${title} not mapped`);
         }
         return window !== null;
     }
