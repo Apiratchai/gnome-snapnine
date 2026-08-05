@@ -10,6 +10,8 @@
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
 
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
 import {gridRect} from './rect.js';
 
 export class LayoutOverlay {
