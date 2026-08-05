@@ -17,6 +17,15 @@
 
 set -u
 
+# Ctrl+C / SIGTERM: clean up test windows so nothing leaks
+cleanup() {
+    pkill -f "snapnine-test-" 2>/dev/null
+    pkill -f snapnine-dialog 2>/dev/null
+    pkill -f "race.p[y]" 2>/dev/null
+    pkill -f "remap.p[y]" 2>/dev/null
+}
+trap cleanup INT TERM
+
 DEST=org.gnome.Shell
 IFACE=org.gnome.Shell.Extensions.Snapnine
 PATH_=/org/gnome/shell/extensions/snapnine

@@ -163,7 +163,13 @@ export default class SnapnineExtension extends Extension {
                 for (const [schemaId, builtinKey, name] of BUILTIN_KEYS) {
                     let settings = settingsBySchema.get(schemaId);
                     if (!settings) {
-                        settings = new Gio.Settings({schema_id: schemaId});
+                        try {
+                            settings = new Gio.Settings({schema_id: schemaId});
+                        } catch (e) {
+                            log(`snapnine: schema ${schemaId} not available, ` +
+                                `skipping conflict check: ${e.message}`);
+                            continue;
+                        }
                         settingsBySchema.set(schemaId, settings);
                     }
                     if (settings.get_strv(builtinKey).includes(accel) &&
@@ -220,8 +226,19 @@ export default class SnapnineExtension extends Extension {
     }
 
     // snap(window, position) -- apply an action to a window.
-    // A null window (nothing focused) is a no-op.
+    // A null window (nothing focused) is a no-op.  The body is
+    // wrapped because a window can be disposed mid-call through
+    // signal re-entrancy (e.g. during move_resize_frame); an
+    // uncaught throw would break the keybinding handler.
     snap(window, position) {
+        try {
+            this._snap(window, position);
+        } catch (e) {
+            log(`snapnine: snap failed: ${e.message}`);
+        }
+    }
+
+    _snap(window, position) {
         if (!window || window.is_fullscreen())
             return;
 
@@ -236,6 +253,9 @@ export default class SnapnineExtension extends Extension {
                 return;
             if (!window.is_maximized())
                 window.maximize();
+            // Note: maximize bypasses _applySnap, so a fresh window
+            // gets no settle-wait and no watcher.  Native maximize is
+            // robust against late client geometry; this is accepted.
             return;
         }
 
@@ -243,7 +263,12 @@ export default class SnapnineExtension extends Extension {
         // area.  Not back to the pre-snap geometry: after a snap that
         // is half a screen.
         if (position === RESTORE) {
-            if (window.is_maximized() || this._previous.has(window)) {
+            // Also fire for mutter-tiled windows (builtin Super+arrow):
+            // they hold a tile constraint, which may re-assert on
+            // later resizes, but the float attempt is better than a
+            // silent no-op.
+            if (window.is_maximized() || this._previous.has(window) ||
+                window.get_tile_match()) {
                 const workArea =
                     window.get_work_area_for_monitor(window.get_monitor());
                 window.unmaximize();
@@ -340,7 +365,8 @@ export default class SnapnineExtension extends Extension {
             try {
                 return callback();
             } catch (e) {
-                return GLib.SOURCE_REMOVE;   // window destroyed mid-wait
+                log(`snapnine: watcher error: ${e.message}`);
+                return GLib.SOURCE_REMOVE;
             }
         };
 
@@ -357,6 +383,16 @@ export default class SnapnineExtension extends Extension {
         // gets re-placed by mutter at the default centered position,
         // and only a full-rect check catches that.  If the user grabs
         // the window, their intent wins and we stand down.
+        const giveUp = why => {
+            const r = window.get_frame_rect();
+            if (r.x !== target.x || r.y !== target.y ||
+                r.width !== target.width || r.height !== target.height)
+                log(`snapnine: watcher gave up (${why}) on ` +
+                    `${window.get_title()}: at ${r.x},${r.y} ${r.width}x${r.height}, ` +
+                    `target ${target.x},${target.y} ${target.width}x${target.height}`);
+            this._watchers.delete(window);
+        };
+
         const watch = () => {
             let stable = 0;
             let ticks = 0;
@@ -365,7 +401,11 @@ export default class SnapnineExtension extends Extension {
                 const r = window.get_frame_rect();
                 ticks++;
                 if (global.display.is_grabbed()) {
-                    this._watchers.delete(window);
+                    // Display-wide check: a grab on any window (user
+                    // drag, another extension, a modal) stands this
+                    // watcher down.  Mutter exposes no per-window grab
+                    // query, so user intent wins conservatively.
+                    giveUp('user grabbed the display');
                     return GLib.SOURCE_REMOVE;
                 }
                 // Mid-unmap/remap: wait, do not count stability, and
@@ -373,22 +413,26 @@ export default class SnapnineExtension extends Extension {
                 if (!window.mapped() || window.get_monitor() === -1) {
                     stable = 0;
                     if (ticks >= cap) {
-                        this._watchers.delete(window);
+                        giveUp('window never remapped in time');
                         return GLib.SOURCE_REMOVE;
                     }
                     return GLib.SOURCE_CONTINUE;
                 }
                 if (r.x === target.x && r.y === target.y &&
                     r.width === target.width && r.height === target.height) {
-                    if (++stable >= 3 || ticks >= cap) {
+                    if (++stable >= 3) {
                         this._watchers.delete(window);
+                        return GLib.SOURCE_REMOVE;
+                    }
+                    if (ticks >= cap) {
+                        giveUp('timeout');
                         return GLib.SOURCE_REMOVE;
                     }
                     return GLib.SOURCE_CONTINUE;
                 }
                 stable = 0;
                 if (ticks >= cap) {
-                    this._watchers.delete(window);
+                    giveUp('timeout');
                     return GLib.SOURCE_REMOVE;
                 }
                 apply();
@@ -483,28 +527,45 @@ export default class SnapnineExtension extends Extension {
 
     GetWindowRect(title) {
         const window = this._findByTitle(title);
-        return window ? this._rectString(window) : 'gone';
+        if (!window)
+            return 'gone';
+        try {
+            return this._rectString(window);
+        } catch (e) {
+            log(`snapnine: GetWindowRect failed: ${e.message}`);
+            return 'gone';
+        }
     }
 
     GetWindowState(title) {
         const window = this._findByTitle(title);
         if (!window)
             return 'gone';
-        if (window.is_fullscreen())
-            return 'fullscreen';
-        if (window.minimized)
-            return 'minimized';
-        if (window.is_maximized())
-            return 'maximized';
-        return 'normal';
+        try {
+            if (window.is_fullscreen())
+                return 'fullscreen';
+            if (window.minimized)
+                return 'minimized';
+            if (window.is_maximized())
+                return 'maximized';
+            return 'normal';
+        } catch (e) {
+            log(`snapnine: GetWindowState failed: ${e.message}`);
+            return 'gone';
+        }
     }
 
     GetMonitorWorkArea(title) {
         const window = this._findByTitle(title);
         if (!window)
             return 'gone';
-        const wa = window.get_work_area_for_monitor(window.get_monitor());
-        return `${wa.x} ${wa.y} ${wa.width} ${wa.height}`;
+        try {
+            const wa = window.get_work_area_for_monitor(window.get_monitor());
+            return `${wa.x} ${wa.y} ${wa.width} ${wa.height}`;
+        } catch (e) {
+            log(`snapnine: GetMonitorWorkArea failed: ${e.message}`);
+            return 'gone';
+        }
     }
 
     SetFullscreen(title, full) {
