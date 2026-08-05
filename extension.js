@@ -24,11 +24,12 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
+import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {POSITIONS, isPosition, rect, eq, floatRect} from './rect.js';
+import {POSITIONS, isPosition, rect, eq, floatRect, gridRect} from './rect.js';
 import {LayoutOverlay} from './overlay.js';
 
 const MINIMIZE = 'minimize';
@@ -41,7 +42,10 @@ const KEY_TO_ACTION = Object.fromEntries([
     ...POSITIONS.map(p => [`snap-${p}`, p]),
     ['snap-minimize', MINIMIZE],
     ['snap-restore', RESTORE],
-    ['snap-layout', 'layout'],   // experimental, branch-only
+    ['snap-layout-1', 'layout-1'],               // experimental, branch-only
+    ['snap-layout-2', 'layout-2'],               // experimental
+    ['snap-layout-3', 'layout-3'],               // experimental
+    ['snap-capture-layout', 'capture-layout'],    // experimental
 ]);
 const ALL_KEYS = Object.keys(KEY_TO_ACTION);
 
@@ -117,6 +121,12 @@ export default class SnapnineExtension extends Extension {
         this._createdId = global.display.connect('window-created',
             (_display, window) => this._createdAt.set(window, Date.now()));
 
+        // Load the overlay stylesheet (widgets reference its classes).
+        this._theme = St.ThemeContext.get_for_stage(global.stage).get_theme();
+        this._stylesheet = Gio.File.new_for_path(
+            `${this.path}/stylesheet.css`);
+        this._theme.load_stylesheet(this._stylesheet);
+
         this._rebind();
         this._exportDbus();
 
@@ -144,6 +154,11 @@ export default class SnapnineExtension extends Extension {
         this._watchers.clear();
         if (this._overlay)
             this._overlay.destroy();
+        if (this._stylesheet && this._theme) {
+            this._theme.unload_stylesheet(this._stylesheet);
+            this._stylesheet = null;
+            this._theme = null;
+        }
         this._unbind();
         if (this._exported) {
             this._dbusImpl.unexport();
@@ -271,12 +286,26 @@ export default class SnapnineExtension extends Extension {
         // Restore: float the window centered, 3/5 x 4/5 of the work
         // area.  Not back to the pre-snap geometry: after a snap that
         // is half a screen.
-        // Experimental: show or cancel the interactive layout grid.
-        if (position === 'layout') {
-            if (this._overlay)
-                this._overlay.destroy();
-            else
-                this._showOverlay(3, 3);
+        // Experimental: capture window positions to a preset.
+        if (position === 'capture-layout') {
+            this._captureLayout();
+            return;
+        }
+
+        // Experimental: activate a saved layout preset.
+        // Each preset has its own keybinding.
+        if (position === 'layout-1' || position === 'layout-2' ||
+            position === 'layout-3') {
+            const index = position === 'layout-1' ? 0 :
+                          position === 'layout-2' ? 1 : 2;
+            const rects = this._readPreset(index);
+            if (rects.length === 0) {
+                Main.notify('snapnine',
+                    `Layout preset ${index + 1} is empty. ` +
+                    'Use the capture shortcut to save one.');
+                return;
+            }
+            this._showOverlay(rects, `Preset ${index + 1}`);
             return;
         }
 
@@ -609,21 +638,104 @@ export default class SnapnineExtension extends Extension {
     }
 
     ShowLayoutOverlay(columns, rows) {
-        this._showOverlay(columns, rows);
+        // Generate a grid for the D-Bus caller (test suite).
+        const window = global.display.focus_window;
+        if (!window)
+            return false;
+        const wa = window.get_work_area_for_monitor(window.get_monitor());
+        const rects = [];
+        for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < columns; col++) {
+                const r = gridRect(wa, columns, rows, col, row);
+                // gridRect returns absolute, store relative to wa.
+                rects.push({x: r.x - wa.x, y: r.y - wa.y,
+                            width: r.width, height: r.height});
+            }
+        }
+        this._showOverlay(rects);
         return this._overlay !== null;
     }
 
-    // Experimental, branch-only: interactive grid overlay.
-    _showOverlay(columns, rows) {
+    // Capture visible NORMAL windows on the focused monitor and save
+    // their positions to a preset chosen via the overlay.
+    _captureLayout() {
+        const window = global.display.focus_window;
+        if (!window || window.is_fullscreen())
+            return;
+        const monitor = window.get_monitor();
+        const wa = window.get_work_area_for_monitor(monitor);
+
+        const rects = [];
+        const activeWs = global.workspace_manager.get_active_workspace_index();
+        for (const actor of global.get_window_actors()) {
+            const w = actor.meta_window;
+            if (!w.mapped || w.minimized || w.get_monitor() !== monitor)
+                continue;
+            // Only capture windows on the current workspace.
+            if (w.get_workspace().index() !== activeWs)
+                continue;
+            if (w.get_window_type() !== Meta.WindowType.NORMAL)
+                continue;
+            if (w.is_skip_taskbar())
+                continue;
+            const r = w.get_frame_rect();
+            // Skip tiny windows (e.g., invisible helpers, tray icons).
+            if (r.width < 50 || r.height < 50)
+                continue;
+            // Store relative to the work area so positions are
+            // portable across monitors.  The overlay converts to
+            // absolute at snap time.
+            rects.push({
+                x: r.x - wa.x,
+                y: r.y - wa.y,
+                width: r.width,
+                height: r.height,
+            });
+        }
+
+        if (rects.length === 0) {
+            Main.notify('snapnine',
+                'No visible windows to capture on this monitor.');
+            return;
+        }
+
         if (this._overlay)
             this._overlay.destroy();
-        this._overlay = new LayoutOverlay(columns, rows,
+        this._overlay = new LayoutOverlay(rects, 'capture', null,
+            null,  // onPick not used in capture mode
+            index => {
+                const key = `layout-preset-${index + 1}`;
+                const strings = rects.map(
+                    r => `${r.x},${r.y},${r.width},${r.height}`);
+                this._settings.set_strv(key, strings);
+                log(`snapnine: saved ${rects.length} positions to preset ${index + 1}`);
+            },
+            () => { this._overlay = null; });
+    }
+
+    // Read a saved preset as an array of rects (empty if none saved).
+    _readPreset(index) {
+        const key = `layout-preset-${index + 1}`;
+        const strings = this._settings.get_strv(key);
+        return strings.map(s => {
+            const [x, y, w, h] = s.split(',').map(Number);
+            return {x, y, width: w, height: h};
+        }).filter(r => r.width > 0 && r.height > 0);
+    }
+
+    // Experimental, branch-only: interactive overlay from saved rects.
+    _showOverlay(rects, title) {
+        if (this._overlay)
+            this._overlay.destroy();
+        this._overlay = new LayoutOverlay(rects, 'pick', title,
             target => {
                 const window = global.display.focus_window;
                 if (window) {
                     window.unmaximize();
                     this._applySnap(window, target);
                 }
-            });
+            },
+            null,  // onSlot not used in pick mode
+            () => { this._overlay = null; });
     }
 }

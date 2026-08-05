@@ -1,4 +1,10 @@
 /* snapnine layout overlay -- branch prototype */
+.snapnine-layout-title {
+    font-size: 18px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.85);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
 .snapnine-layout-overlay {
     background-color: rgba(0, 0, 0, 0.25);
     border-radius: 8px;
@@ -7,8 +13,37 @@
     border: 2px solid rgba(255, 255, 255, 0.55);
     border-radius: 6px;
     background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.90);
+    font-size: 20px;
+    font-weight: bold;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 .snapnine-layout-cell:hover {
     background-color: rgba(255, 255, 255, 0.30);
     border-color: rgba(255, 255, 255, 0.95);
+}
+.snapnine-layout-cell-focused {
+    border-color: rgba(255, 255, 255, 0.95);
+    background-color: rgba(255, 255, 255, 0.35);
+    border-width: 3px;
+}
+.snapnine-layout-capture-cell {
+    border: 2px solid rgba(100, 180, 255, 0.70);
+    border-radius: 6px;
+    background-color: rgba(100, 180, 255, 0.15);
+    color: rgba(255, 255, 255, 0.90);
+    font-size: 20px;
+    font-weight: bold;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+.snapnine-layout-slot-btn {
+    background-color: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.50);
+    border-radius: 8px;
+    padding: 8px 24px;
+    font-size: 16px;
+    color: white;
+}
+.snapnine-layout-slot-btn:hover {
+    background-color: rgba(255, 255, 255, 0.30);
 }
