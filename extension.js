@@ -338,7 +338,7 @@ export default class SnapnineExtension extends Extension {
             // window in that state crashes mutter (mutter #1600,
             // meta_window_update_monitor).  Skip and let the watcher
             // retry once the window is mapped again.
-            if (!window.mapped() || window.get_monitor() === -1)
+            if (!window.mapped || window.get_monitor() === -1)
                 return;
             const move = () => {
                 // tiling-assistant's current workaround (their tile(),
@@ -410,7 +410,7 @@ export default class SnapnineExtension extends Extension {
                 }
                 // Mid-unmap/remap: wait, do not count stability, and
                 // do not apply (that is what crashed mutter).
-                if (!window.mapped() || window.get_monitor() === -1) {
+                if (!window.mapped || window.get_monitor() === -1) {
                     stable = 0;
                     if (ticks >= cap) {
                         giveUp('window never remapped in time');
@@ -509,7 +509,7 @@ export default class SnapnineExtension extends Extension {
 
     MoveWindow(title, x, y, w, h) {
         const window = this._findByTitle(title);
-        if (window && (window.mapped() && window.get_monitor() !== -1)) {
+        if (window && (window.mapped && window.get_monitor() !== -1)) {
             window.unmaximize();
             // move_frame first, tiling-assistant's workaround (see
             // apply() in snap), then verify and retry once.
