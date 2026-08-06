@@ -1,3 +1,5 @@
+// Copyright (C) 2026 Apiratchai Lakkum
+// SPDX-License-Identifier: GPL-2.0-or-later
 // overlay.js -- interactive layout overlay.
 //
 // Shows saved window positions (or captured positions) on the focused
