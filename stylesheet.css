@@ -37,6 +37,16 @@
     border-radius: 6px;
     background-color: transparent;
 }
+.snapnine-layout-cell-num {
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffffff;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.95), 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+.snapnine-layout-popup-hl {
+    border-color: #ffb000;
+    background-color: rgba(255, 176, 0, 0.35);
+}
 .snapnine-layout-capture-cell {
     border: 2px solid rgba(100, 180, 255, 0.70);
     border-radius: 6px;
@@ -73,6 +83,8 @@
     margin: 2px;
     font-size: 16px;
     color: rgba(255, 255, 255, 0.90);
+    /* The label fills the item box; center the text within it. */
+    text-align: center;
 }
 .snapnine-layout-popup-btn:hover {
     background-color: rgba(255, 255, 255, 0.30);
@@ -110,6 +122,14 @@
 .snapnine-light .snapnine-layout-cell-focused {
     border-color: rgba(0, 0, 0, 0.85);
     background-color: rgba(0, 0, 0, 0.22);
+}
+.snapnine-light .snapnine-layout-cell-num {
+    color: #000000;
+    text-shadow: 0 0 4px rgba(255, 255, 255, 0.9), 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+.snapnine-light .snapnine-layout-popup-hl {
+    border-color: #b07000;
+    background-color: rgba(255, 176, 0, 0.25);
 }
 .snapnine-light .snapnine-layout-target-outline {
     border-color: #b07000;

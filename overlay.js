@@ -18,9 +18,8 @@ import Meta from 'gi://Meta';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 
-import {hitTest} from './rect.js';
+import {hitTest, overlappingPairs} from './rect.js';
 
 // Map numpad key symbols (both NumLock states) to 0-based cell indices.
 // Numpad physical layout:
@@ -58,6 +57,7 @@ export class LayoutOverlay {
         this._onDestroy = onDestroy;
         this._slotInfo = slotInfo;
         this._destroyed = false;
+        this._grab = null;
         this._cells = [];
         this._focusIndex = -1;
         this._outline = null;
@@ -112,7 +112,8 @@ export class LayoutOverlay {
         // The overlay colors are tuned for a dark shell theme; mark
         // the container when the theme background is light so the CSS
         // can switch to dark-on-light colors.
-        if (!Util.isDarkBackground())
+        const {colorScheme} = St.Settings.get();
+        if (colorScheme === St.SystemColorScheme.PREFER_LIGHT)
             this._container.add_style_class_name('snapnine-light');
         this._container.set_layout_manager(new Clutter.BinLayout());
 
@@ -139,7 +140,6 @@ export class LayoutOverlay {
                 y: r.y,
                 width: r.width,
                 height: r.height,
-                label: i < 9 ? String(i + 1) : '',
                 style_class: cellClass,
                 can_focus: false,
             });
@@ -183,6 +183,14 @@ export class LayoutOverlay {
                 text: 'Tab: next window · 1-9/click: place · Esc: close',
                 x: 12,
                 y: this._wa.height - 36,
+                style_class: 'snapnine-layout-hint',
+            });
+            this._container.add_child(hint);
+        } else if (mode === 'capture') {
+            const hint = new St.Label({
+                text: '1/2/3: save preset · Esc: cancel',
+                x: 12,
+                y: this._wa.height - 100,
                 style_class: 'snapnine-layout-hint',
             });
             this._container.add_child(hint);
@@ -307,7 +315,66 @@ export class LayoutOverlay {
         });
 
         Main.uiGroup.add_child(this._container);
-        this._container.grab_key_focus();
+
+        // Position numbers on their own top layer, added after the outline
+        // so nothing (cell borders, focus highlights, target outline) is
+        // drawn over them.  Each number is sized to its content and
+        // centered on its cell; St.Label's x/y alignment does not work in
+        // this shell, so centering is done by positioning.  Not reactive,
+        // so clicks still reach the cells below.
+        // Overlap groups: numbers on stacked cells all land near the same
+        // cell center, so within a group each number gets its own slot and
+        // the column spreads upward instead of piling.
+        const targets = this._cells.map(c => c.target);
+        const parent = targets.map((_, i) => i);
+        const find = i => {
+            let r = i;
+            while (parent[r] !== r)
+                r = parent[r];
+            while (parent[i] !== r) {
+                const next = parent[i];
+                parent[i] = r;
+                i = next;
+            }
+            return r;
+        };
+        const union = (a, b) => {
+            const ra = find(a);
+            const rb = find(b);
+            if (ra !== rb)
+                parent[ra] = rb;
+        };
+        for (const [a, b] of overlappingPairs(targets))
+            union(a, b);
+        const nextSlot = new Map();
+        const slotOf = new Map();
+        for (let i = 0; i < targets.length; i++) {
+            const r = find(i);
+            slotOf.set(i, nextSlot.get(r) ?? 0);
+            nextSlot.set(r, (nextSlot.get(r) ?? 0) + 1);
+        }
+
+        for (let n = 0; n < this._cells.length && n < 9; n++) {
+            const t = this._cells[n].target;
+            const num = new St.Label({
+                text: String(n + 1),
+                style_class: 'snapnine-layout-cell-num',
+                reactive: false,
+            });
+            this._container.add_child(num);
+            const [, nw, , nh] = num.get_preferred_size();
+            num.set_size(nw, nh);
+            const slot = slotOf.get(n) ?? 0;
+            const y = Math.round(t.y + (t.height - nh) / 2) - 10 - slot * (nh + 6);
+            num.set_position(
+                Math.round(t.x + (t.width - nw) / 2),
+                Math.max(Math.round(t.y) + 2, y));
+        }
+
+        // Modal grab: keyboard events go to the overlay only, not to the
+        // focused application.  Without it, Tab / digits / Escape are both
+        // handled here and delivered to the app below (reported bug).
+        this._grab = Main.pushModal(this._container);
     }
 
     // -- focus navigation (pick mode) ------------------------------------
@@ -411,28 +478,58 @@ export class LayoutOverlay {
         if (this._popup)
             this._popup.destroy();
 
+        // Plain reactive labels, not St.Button: a popup item only needs a
+        // numbered, clickable label, and St.Button adds its own press/
+        // release semantics that are easy to fight with.  St.Label is a
+        // StWidget, so the same CSS (background, border, padding, :hover)
+        // applies.
         const box = new St.BoxLayout({
             vertical: true,
             style_class: 'snapnine-layout-popup',
         });
 
         for (const idx of indices) {
-            const label = idx < 9 ? String(idx + 1) : `Cell ${idx + 1}`;
-            const btn = new St.Button({
-                label,
-                style_class: 'snapnine-layout-popup-btn',
+            const item = new St.Label({
+                text: idx < 9 ? String(idx + 1) : `Cell ${idx + 1}`,
+                reactive: true,
+                track_hover: true,
                 can_focus: false,
+                style_class: 'snapnine-layout-popup-btn',
             });
-            btn.connect('clicked', () => {
-                this._pick(this._cells[idx].target);
-                this._dismissPopup();
+            item.connect('button-press-event', (w, event) => {
+                if (event.get_button() === 1) {
+                    this._pick(this._cells[idx].target);
+                    this._dismissPopup();
+                }
+                return Clutter.EVENT_STOP;
             });
-            box.add_child(btn);
+            // Hovering an item highlights its cell so it is obvious which
+            // overlapping slot the number refers to.
+            item.connect('enter-event', () => {
+                this._cells[idx].button
+                    .add_style_class_name('snapnine-layout-popup-hl');
+            });
+            item.connect('leave-event', () => {
+                this._cells[idx].button
+                    .remove_style_class_name('snapnine-layout-popup-hl');
+            });
+            box.add_child(item);
         }
 
         // Clamp to container bounds.
         const px = Math.max(4, Math.min(sx - this._wa.x, this._wa.width - 120));
         const py = Math.max(4, Math.min(sy - this._wa.y, this._wa.height - 120));
+
+        this._container.add_child(box);
+        this._popup = box;
+
+        // The container uses a BinLayout, which only allocates its first
+        // child, so the popup needs an explicit size or it renders at 0x0.
+        // Size it after it is in the stage: before that, fonts and styles
+        // are not loaded, so the natural width can come out too small and
+        // clip the item numbers (leaving only the padding clickable).
+        const [, natW, , natH] = box.get_preferred_size();
+        box.set_size(Math.max(natW, 48), natH);
         box.set_position(px, py);
 
         // Clicking outside the popup dismisses it.
@@ -441,18 +538,17 @@ export class LayoutOverlay {
                 this._dismissPopup();
                 return Clutter.EVENT_STOP;
             }
-            // Left-click on a popup button is handled by the child
-            // button's clicked signal (above).  Click on the box
-            // background itself dismisses.
+            // Left-click on a popup item is handled and stopped by the
+            // item's press handler (above), so this only runs for clicks
+            // on the box background itself.
             this._dismissPopup();
             return Clutter.EVENT_STOP;
         });
-
-        this._container.add_child(box);
-        this._popup = box;
     }
 
     _dismissPopup() {
+        for (const cell of this._cells)
+            cell.button.remove_style_class_name('snapnine-layout-popup-hl');
         if (this._popup) {
             this._popup.destroy();
             this._popup = null;
@@ -521,6 +617,10 @@ export class LayoutOverlay {
             return;
         this._destroyed = true;
         this._dismissPopup();
+        if (this._grab) {
+            Main.popModal(this._grab);
+            this._grab = null;
+        }
         if (this._container) {
             this._container.destroy();
             this._container = null;
