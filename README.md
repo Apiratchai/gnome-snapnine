@@ -109,7 +109,7 @@ source.
 ### Way 1: release zip (recommended)
 
 1. Download the zip:
-   https://github.com/Apiratchai/gnome-snapnine/releases/download/v11/snapnine.zip
+   https://github.com/Apiratchai/gnome-snapnine/releases/download/v12/snapnine.zip
 2. Install it:
 
        gnome-extensions install snapnine.zip
