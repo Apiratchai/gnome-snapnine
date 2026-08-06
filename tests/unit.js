@@ -6,7 +6,7 @@
 //
 // Exits non-zero on any failure.
 
-import {POSITIONS, isPosition, rect, eq, floatRect, gridRect} from '../rect.js';
+import {POSITIONS, isPosition, rect, eq, floatRect, gridRect, hitTest, overlappingPairs, parsePreset} from '../rect.js';
 import system from 'system';
 
 let pass = 0;
@@ -101,6 +101,68 @@ check('gridRect last column absorbs remainder',
     g10[9].width === WA.width - 9 * Math.floor(WA.width / 10));
 check('gridRect rows', eq(gridRect(WA, 2, 4, 0, 3),
     {x: 0, y: 28 + 3 * Math.floor(1052 / 4), width: 960, height: 1052 - 3 * Math.floor(1052 / 4)}));
+
+// Degenerate grids: no division by zero, no NaN.
+check('gridRect zero columns', eq(gridRect(WA, 0, 3, 0, 0), WA));
+check('gridRect zero rows', eq(gridRect(WA, 2, 0, 0, 0), WA));
+check('gridRect negative', eq(gridRect(WA, -2, 3, 0, 0), WA));
+
+// hitTest: which rects contain a point.
+const HR = [
+    {x: 0, y: 0, width: 100, height: 100},
+    {x: 50, y: 50, width: 100, height: 100},
+    {x: 200, y: 0, width: 100, height: 100},
+];
+check('hitTest single hit',
+    hitTest({x: 10, y: 10}, HR).length === 1 &&
+    hitTest({x: 10, y: 10}, HR)[0] === 0);
+check('hitTest overlapping point returns both',
+    hitTest({x: 60, y: 60}, HR).length === 2 &&
+    hitTest({x: 60, y: 60}, HR).includes(0) &&
+    hitTest({x: 60, y: 60}, HR).includes(1));
+check('hitTest edge inside',
+    hitTest({x: 0, y: 0}, HR).length === 1 &&
+    hitTest({x: 0, y: 0}, HR)[0] === 0);
+check('hitTest edge outside',
+    hitTest({x: 150, y: 25}, HR).length === 0);
+check('hitTest miss', hitTest({x: 500, y: 500}, HR).length === 0);
+check('hitTest empty rects', hitTest({x: 0, y: 0}, []).length === 0);
+
+// overlappingPairs: which rect pairs overlap.
+check('overlappingPairs one pair',
+    overlappingPairs(HR).length === 1 &&
+    overlappingPairs(HR)[0][0] === 0 &&
+    overlappingPairs(HR)[0][1] === 1);
+check('overlappingPairs disjoint',
+    overlappingPairs([
+        {x: 0, y: 0, width: 10, height: 10},
+        {x: 20, y: 20, width: 10, height: 10},
+    ]).length === 0);
+check('overlappingPairs shared edge no overlap',
+    overlappingPairs([
+        {x: 0, y: 0, width: 10, height: 10},
+        {x: 10, y: 0, width: 10, height: 10},
+    ]).length === 0);
+check('overlappingPairs single rect', overlappingPairs([HR[0]]).length === 0);
+check('overlappingPairs empty', overlappingPairs([]).length === 0);
+
+// parsePreset: JSON preset → scaled rects.
+const PWA = {width: 1920, height: 1052};
+check('parsePreset valid',
+    parsePreset('{"wa":{"width":1920,"height":1052},"rects":[{"x":0,"y":0,"width":960,"height":526}]}', WA).length === 1);
+check('parsePreset scaling',
+    eq(parsePreset('{"wa":{"width":1920,"height":1052},"rects":[{"x":0,"y":0,"width":960,"height":526}]}',
+        {x: 0, y: 0, width: 3840, height: 2104})[0],
+    {x: 0, y: 0, width: 1920, height: 1052}));
+check('parsePreset no wa scales 1',
+    eq(parsePreset('{"rects":[{"x":0,"y":0,"width":100,"height":100}]}', WA)[0],
+    {x: 0, y: 0, width: 100, height: 100}));
+check('parsePreset empty string', parsePreset('').length === 0);
+check('parsePreset null', parsePreset(null).length === 0);
+check('parsePreset malformed', parsePreset('not json').length === 0);
+check('parsePreset no rects', parsePreset('{"wa":{"width":1920,"height":1052}}').length === 0);
+check('parsePreset skips zero-size rect',
+    parsePreset('{"rects":[{"x":0,"y":0,"width":0,"height":100},{"x":0,"y":0,"width":100,"height":100}]}').length === 1);
 
 print('');
 print(`${pass} passed, ${fail} failed`);

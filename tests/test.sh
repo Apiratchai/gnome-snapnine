@@ -134,25 +134,6 @@ want_var() {
     esac
 }
 
-# test_position <position> -- fresh window, move, snap, verify, kill
-test_position() {
-    id=$((id + 1))
-    spawn_window "$id"
-    if ! wait_window "$id"; then
-        bad "window $id never appeared"
-        return
-    fi
-    sleep 0.5
-    call MoveWindow "snapnine-test-$id" 200 200 600 400 >/dev/null
-    sleep 0.3
-    call SnapWindow "snapnine-test-$id" "$1" >/dev/null
-    sleep 0.5
-    actual=$(call GetWindowRect "snapnine-test-$id" | value)
-    eval "want=\$expect_$1"
-    check "snap $1" "$want" "$actual"
-    kill_window "$id"
-}
-
 # ---------------------------------------------------------------- setup
 
 echo "== snapnine live tests =="
