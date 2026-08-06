@@ -125,7 +125,11 @@ export default class SnapnineExtension extends Extension {
         this._theme = St.ThemeContext.get_for_stage(global.stage).get_theme();
         this._stylesheet = Gio.File.new_for_path(
             `${this.path}/stylesheet.css`);
-        this._theme.load_stylesheet(this._stylesheet);
+        try {
+            this._theme.load_stylesheet(this._stylesheet);
+        } catch (e) {
+            log(`snapnine: cannot load stylesheet: ${e.message}`);
+        }
 
         this._rebind();
         this._exportDbus();
@@ -298,7 +302,9 @@ export default class SnapnineExtension extends Extension {
             position === 'layout-3') {
             const index = position === 'layout-1' ? 0 :
                           position === 'layout-2' ? 1 : 2;
-            const rects = this._readPreset(index);
+            const wa = window.get_work_area_for_monitor(
+                window.get_monitor());
+            const rects = this._readPreset(index, wa);
             if (rects.length === 0) {
                 Main.notify('snapnine',
                     `Layout preset ${index + 1} is empty. ` +
@@ -660,8 +666,13 @@ export default class SnapnineExtension extends Extension {
     // their positions to a preset chosen via the overlay.
     _captureLayout() {
         const window = global.display.focus_window;
-        if (!window || window.is_fullscreen())
+        if (!window)
             return;
+        if (window.is_fullscreen()) {
+            Main.notify('snapnine',
+                'Cannot capture layout while fullscreen. Unfullscreen first.');
+            return;
+        }
         const monitor = window.get_monitor();
         const wa = window.get_work_area_for_monitor(monitor);
 
@@ -671,7 +682,6 @@ export default class SnapnineExtension extends Extension {
             const w = actor.meta_window;
             if (!w.mapped || w.minimized || w.get_monitor() !== monitor)
                 continue;
-            // Only capture windows on the current workspace.
             if (w.get_workspace().index() !== activeWs)
                 continue;
             if (w.get_window_type() !== Meta.WindowType.NORMAL)
@@ -679,18 +689,15 @@ export default class SnapnineExtension extends Extension {
             if (w.is_skip_taskbar())
                 continue;
             const r = w.get_frame_rect();
-            // Skip tiny windows (e.g., invisible helpers, tray icons).
             if (r.width < 50 || r.height < 50)
                 continue;
-            // Store relative to the work area so positions are
-            // portable across monitors.  The overlay converts to
-            // absolute at snap time.
-            rects.push({
-                x: r.x - wa.x,
-                y: r.y - wa.y,
-                width: r.width,
-                height: r.height,
-            });
+            // Clamp to the work area.  Windows partially off-screen
+            // produce negative offsets or oversized dimensions.
+            const rx = Math.max(0, r.x - wa.x);
+            const ry = Math.max(0, r.y - wa.y);
+            const rw = Math.min(r.width, wa.width - rx);
+            const rh = Math.min(r.height, wa.height - ry);
+            rects.push({x: rx, y: ry, width: rw, height: rh});
         }
 
         if (rects.length === 0) {
@@ -702,29 +709,61 @@ export default class SnapnineExtension extends Extension {
         if (this._overlay)
             this._overlay.destroy();
         this._overlay = new LayoutOverlay(rects, 'capture', null,
-            null,  // onPick not used in capture mode
+            null,
             index => {
                 const key = `layout-preset-${index + 1}`;
-                const strings = rects.map(
-                    r => `${r.x},${r.y},${r.width},${r.height}`);
+                // Prefix with work area dimensions for proportional
+                // scaling when applied on a different monitor size.
+                const strings = [`wa:${wa.width}x${wa.height}`];
+                for (const r of rects)
+                    strings.push(`${r.x},${r.y},${r.width},${r.height}`);
                 this._settings.set_strv(key, strings);
                 log(`snapnine: saved ${rects.length} positions to preset ${index + 1}`);
             },
             () => { this._overlay = null; });
     }
 
-    // Read a saved preset as an array of rects (empty if none saved).
-    _readPreset(index) {
+    // Read a saved preset, scaling positions if the work area size
+    // differs from when the preset was captured.  Old presets without
+    // a "wa:" prefix keep pixel-exact positions (backward compat).
+    _readPreset(index, currentWa) {
         const key = `layout-preset-${index + 1}`;
         const strings = this._settings.get_strv(key);
-        return strings.map(s => {
-            const [x, y, w, h] = s.split(',').map(Number);
-            return {x, y, width: w, height: h};
-        }).filter(r => r.width > 0 && r.height > 0);
+        if (strings.length === 0)
+            return [];
+
+        let origW = null, origH = null;
+        let start = 0;
+        if (strings[0].startsWith('wa:')) {
+            const [w, h] = strings[0].substring(3).split('x').map(Number);
+            if (w > 0 && h > 0) { origW = w; origH = h; }
+            start = 1;
+        }
+
+        const sw = origW && currentWa ? currentWa.width / origW : 1;
+        const sh = origH && currentWa ? currentWa.height / origH : 1;
+
+        const out = [];
+        for (let i = start; i < strings.length; i++) {
+            const [x, y, w, h] = strings[i].split(',').map(Number);
+            if (w > 0 && h > 0) {
+                out.push({
+                    x: Math.round(x * sw),
+                    y: Math.round(y * sh),
+                    width: Math.round(w * sw),
+                    height: Math.round(h * sh),
+                });
+            }
+        }
+        return out;
     }
 
     // Experimental, branch-only: interactive overlay from saved rects.
     _showOverlay(rects, title) {
+        if (!global.display.focus_window) {
+            Main.notify('snapnine', 'No focused window to show the layout on.');
+            return;
+        }
         if (this._overlay)
             this._overlay.destroy();
         this._overlay = new LayoutOverlay(rects, 'pick', title,

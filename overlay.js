@@ -96,7 +96,7 @@ export class LayoutOverlay {
                 y: r.y,
                 width: r.width,
                 height: r.height,
-                label: String(i + 1),
+                label: i < 9 ? String(i + 1) : '',
                 style_class: cellClass,
                 can_focus: false,
             });
