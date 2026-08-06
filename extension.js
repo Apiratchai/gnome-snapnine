@@ -29,7 +29,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {POSITIONS, isPosition, rect, eq, floatRect, gridRect} from './rect.js';
+import {POSITIONS, isPosition, rect, eq, floatRect, parsePreset} from './rect.js';
 import {LayoutOverlay} from './overlay.js';
 
 const MINIMIZE = 'minimize';
@@ -42,10 +42,10 @@ const KEY_TO_ACTION = Object.fromEntries([
     ...POSITIONS.map(p => [`snap-${p}`, p]),
     ['snap-minimize', MINIMIZE],
     ['snap-restore', RESTORE],
-    ['snap-layout-1', 'layout-1'],               // experimental, branch-only
-    ['snap-layout-2', 'layout-2'],               // experimental
-    ['snap-layout-3', 'layout-3'],               // experimental
-    ['snap-capture-layout', 'capture-layout'],    // experimental
+    ['snap-layout-1', 'layout-1'],
+    ['snap-layout-2', 'layout-2'],
+    ['snap-layout-3', 'layout-3'],
+    ['snap-capture-layout', 'capture-layout'],
 ]);
 const ALL_KEYS = Object.keys(KEY_TO_ACTION);
 
@@ -101,11 +101,6 @@ const IFACE_XML = `
     <method name="GetMonitors">
       <arg type="i" name="count" direction="out"/>
     </method>
-    <method name="ShowLayoutOverlay">
-      <arg type="i" name="columns" direction="in"/>
-      <arg type="i" name="rows" direction="in"/>
-      <arg type="b" name="shown" direction="out"/>
-    </method>
   </interface>
 </node>`;
 
@@ -118,6 +113,7 @@ export default class SnapnineExtension extends Extension {
         this._settleTimers = new Map();   // window -> pending settle timer id
         this._watchers = new Map();       // window -> size watcher id
         this._createdAt = new WeakMap();  // window -> creation time
+        this._builtinSettingsCache = null;
         this._createdId = global.display.connect('window-created',
             (_display, window) => this._createdAt.set(window, Date.now()));
 
@@ -150,6 +146,7 @@ export default class SnapnineExtension extends Extension {
             global.display.disconnect(this._createdId);
             this._createdId = 0;
         }
+        this._builtinSettingsCache = null;
         for (const id of this._settleTimers.values())
             GLib.source_remove(id);
         this._settleTimers.clear();
@@ -185,21 +182,12 @@ export default class SnapnineExtension extends Extension {
     // map our key -> [conflicting accelerator, human name of its owner]
     _conflicts() {
         const conflicts = new Map();
-        const settingsBySchema = new Map();
         for (const key of ALL_KEYS) {
             for (const accel of this._settings.get_strv(key)) {
                 for (const [schemaId, builtinKey, name] of BUILTIN_KEYS) {
-                    let settings = settingsBySchema.get(schemaId);
-                    if (!settings) {
-                        try {
-                            settings = new Gio.Settings({schema_id: schemaId});
-                        } catch (e) {
-                            log(`snapnine: schema ${schemaId} not available, ` +
-                                `skipping conflict check: ${e.message}`);
-                            continue;
-                        }
-                        settingsBySchema.set(schemaId, settings);
-                    }
+                    const settings = this._builtinSettings(schemaId);
+                    if (!settings)
+                        continue;
                     if (settings.get_strv(builtinKey).includes(accel) &&
                         !conflicts.has(key))
                         conflicts.set(key, [accel, name]);
@@ -207,6 +195,25 @@ export default class SnapnineExtension extends Extension {
             }
         }
         return conflicts;
+    }
+
+    // Built-in schema settings, cached so _rebind() (which runs on
+    // every changed signal) does not construct them anew each time.
+    _builtinSettings(schemaId) {
+        if (!this._builtinSettingsCache)
+            this._builtinSettingsCache = new Map();
+        if (this._builtinSettingsCache.has(schemaId))
+            return this._builtinSettingsCache.get(schemaId);
+        let settings;
+        try {
+            settings = new Gio.Settings({schema_id: schemaId});
+        } catch (e) {
+            log(`snapnine: schema ${schemaId} not available, ` +
+                `skipping conflict check: ${e.message}`);
+            settings = null;
+        }
+        this._builtinSettingsCache.set(schemaId, settings);
+        return settings;
     }
 
     // Tell the user which key is taken and by what.  The builtin is
@@ -290,14 +297,14 @@ export default class SnapnineExtension extends Extension {
         // Restore: float the window centered, 3/5 x 4/5 of the work
         // area.  Not back to the pre-snap geometry: after a snap that
         // is half a screen.
-        // Experimental: capture window positions to a preset.
+        // Capture window positions to a preset.
         if (position === 'capture-layout') {
             this._captureLayout();
             return;
         }
 
-        // Experimental: activate a saved layout preset.
-        // Each preset has its own keybinding.
+        // Activate a saved layout preset.  Each preset has its own
+        // keybinding.
         if (position === 'layout-1' || position === 'layout-2' ||
             position === 'layout-3') {
             const index = position === 'layout-1' ? 0 :
@@ -529,6 +536,7 @@ export default class SnapnineExtension extends Extension {
     _tilable(window) {
         return window.get_window_type() === Meta.WindowType.NORMAL &&
                !window.is_attached_dialog() &&
+               !window.is_skip_taskbar() &&
                window.allows_resize();
     }
 
@@ -540,8 +548,16 @@ export default class SnapnineExtension extends Extension {
     _exportDbus() {
         const info = Gio.DBusNodeInfo.new_for_xml(IFACE_XML);
         this._dbusImpl = Gio.DBusExportedObject.wrapJSObject(info.interfaces[0], this);
-        this._dbusImpl.export(Gio.DBus.session, DBUS_PATH);
-        this._exported = true;
+        try {
+            this._dbusImpl.export(Gio.DBus.session, DBUS_PATH);
+            this._exported = true;
+        } catch (e) {
+            // The path may still be taken by a stale instance that did
+            // not unexport cleanly; a throw here would stall the shell.
+            log(`snapnine: D-Bus export failed: ${e.message}`);
+            this._dbusImpl = null;
+            this._exported = false;
+        }
     }
 
     _findByTitle(title) {
@@ -643,25 +659,6 @@ export default class SnapnineExtension extends Extension {
         return global.display.get_n_monitors();
     }
 
-    ShowLayoutOverlay(columns, rows) {
-        // Generate a grid for the D-Bus caller (test suite).
-        const window = global.display.focus_window;
-        if (!window)
-            return false;
-        const wa = window.get_work_area_for_monitor(window.get_monitor());
-        const rects = [];
-        for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < columns; col++) {
-                const r = gridRect(wa, columns, rows, col, row);
-                // gridRect returns absolute, store relative to wa.
-                rects.push({x: r.x - wa.x, y: r.y - wa.y,
-                            width: r.width, height: r.height});
-            }
-        }
-        this._showOverlay(rects);
-        return this._overlay !== null;
-    }
-
     // Capture visible NORMAL windows on the focused monitor and save
     // their positions to a preset chosen via the overlay.
     _captureLayout() {
@@ -706,59 +703,44 @@ export default class SnapnineExtension extends Extension {
             return;
         }
 
+        const slotInfo = [0, 1, 2].map(i => {
+            const count = this._presetCount(i);
+            return count > 0 ? `${count} window${count > 1 ? 's' : ''}` : 'empty';
+        });
+
         if (this._overlay)
             this._overlay.destroy();
         this._overlay = new LayoutOverlay(rects, 'capture', null,
             null,
             index => {
                 const key = `layout-preset-${index + 1}`;
-                // Prefix with work area dimensions for proportional
-                // scaling when applied on a different monitor size.
-                const strings = [`wa:${wa.width}x${wa.height}`];
-                for (const r of rects)
-                    strings.push(`${r.x},${r.y},${r.width},${r.height}`);
-                this._settings.set_strv(key, strings);
+                const preset = {
+                    wa: {width: wa.width, height: wa.height},
+                    rects,
+                };
+                this._settings.set_string(key, JSON.stringify(preset));
                 log(`snapnine: saved ${rects.length} positions to preset ${index + 1}`);
             },
-            () => { this._overlay = null; });
+            () => { this._overlay = null; },
+            slotInfo);
+    }
+
+    // Number of saved positions in a preset.
+    _presetCount(index) {
+        return parsePreset(
+            this._settings.get_string(`layout-preset-${index + 1}`)).length;
     }
 
     // Read a saved preset, scaling positions if the work area size
-    // differs from when the preset was captured.  Old presets without
-    // a "wa:" prefix keep pixel-exact positions (backward compat).
+    // differs from when the preset was captured.
     _readPreset(index, currentWa) {
-        const key = `layout-preset-${index + 1}`;
-        const strings = this._settings.get_strv(key);
-        if (strings.length === 0)
-            return [];
-
-        let origW = null, origH = null;
-        let start = 0;
-        if (strings[0].startsWith('wa:')) {
-            const [w, h] = strings[0].substring(3).split('x').map(Number);
-            if (w > 0 && h > 0) { origW = w; origH = h; }
-            start = 1;
-        }
-
-        const sw = origW && currentWa ? currentWa.width / origW : 1;
-        const sh = origH && currentWa ? currentWa.height / origH : 1;
-
-        const out = [];
-        for (let i = start; i < strings.length; i++) {
-            const [x, y, w, h] = strings[i].split(',').map(Number);
-            if (w > 0 && h > 0) {
-                out.push({
-                    x: Math.round(x * sw),
-                    y: Math.round(y * sh),
-                    width: Math.round(w * sw),
-                    height: Math.round(h * sh),
-                });
-            }
-        }
-        return out;
+        return parsePreset(
+            this._settings.get_string(`layout-preset-${index + 1}`), currentWa);
     }
 
-    // Experimental, branch-only: interactive overlay from saved rects.
+    // Interactive overlay from saved rects.  In pick mode the overlay
+    // stays open (batch mode): Tab cycles the target window, each pick
+    // snaps it, overlay auto-closes when every window has a cell.
     _showOverlay(rects, title) {
         if (!global.display.focus_window) {
             Main.notify('snapnine', 'No focused window to show the layout on.');
@@ -767,12 +749,16 @@ export default class SnapnineExtension extends Extension {
         if (this._overlay)
             this._overlay.destroy();
         this._overlay = new LayoutOverlay(rects, 'pick', title,
-            target => {
-                const window = global.display.focus_window;
-                if (window) {
-                    window.unmaximize();
-                    this._applySnap(window, target);
-                }
+            (window, target) => {
+                if (!window || !window.mapped || window.get_monitor() === -1)
+                    return;
+                const current = window.get_frame_rect();
+                this._previous.set(window, {
+                    x: current.x, y: current.y,
+                    width: current.width, height: current.height,
+                });
+                window.unmaximize();
+                this._applySnap(window, target);
             },
             null,  // onSlot not used in pick mode
             () => { this._overlay = null; });

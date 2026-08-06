@@ -69,8 +69,12 @@ export function eq(a, b) {
 // gridRect(workArea, columns, rows, col, row) -- one cell of an
 // N-column x M-row grid over the work area.  The last column and row
 // absorb the remainder so the grid tiles exactly (same rule as the
-// halves).  Used by the experimental layout overlay (branch-only).
+// halves).  Used by the layout overlay.
 export function gridRect(wa, columns, rows, col, row) {
+    // Degenerate grids (0 or negative from a D-Bus caller) would
+    // divide by zero and produce NaN geometry; treat them as a 1x1.
+    if (columns < 1 || rows < 1)
+        return {x: wa.x, y: wa.y, width: wa.width, height: wa.height};
     const w = Math.floor(wa.width / columns);
     const h = Math.floor(wa.height / rows);
     return {
@@ -79,6 +83,85 @@ export function gridRect(wa, columns, rows, col, row) {
         width: col === columns - 1 ? wa.width - col * w : w,
         height: row === rows - 1 ? wa.height - row * h : h,
     };
+}
+
+// hitTest(point, rects) → array of indices
+//
+// Returns the indices of every rect that contains `point`.  A point on a
+// shared edge may land in more than one rect (they can overlap in a
+// saved preset).  Returns an empty array when nothing is hit.
+//
+// point is {x, y} in the same coordinate space as the rects.
+export function hitTest(point, rects) {
+    const hits = [];
+    for (let i = 0; i < rects.length; i++) {
+        const r = rects[i];
+        if (point.x >= r.x && point.x < r.x + r.width &&
+            point.y >= r.y && point.y < r.y + r.height)
+            hits.push(i);
+    }
+    return hits;
+}
+
+// overlappingPairs(rects) → array of [i, j] pairs
+//
+// Returns every pair of indices whose rectangles overlap.  Each pair is
+// [i, j] with i < j (no duplicates, no self-pairs).  Overlap includes
+// shared edges so stacked windows are detected as overlapping.
+export function overlappingPairs(rects) {
+    const pairs = [];
+    for (let i = 0; i < rects.length; i++) {
+        const a = rects[i];
+        for (let j = i + 1; j < rects.length; j++) {
+            const b = rects[j];
+            if (a.x < b.x + b.width && a.x + a.width > b.x &&
+                a.y < b.y + b.height && a.y + a.height > b.y)
+                pairs.push([i, j]);
+        }
+    }
+    return pairs;
+}
+
+// parsePreset(json, currentWa) → rects[]
+//
+// Parses a JSON preset string into an array of work-area-relative rects,
+// scaled to `currentWa` if the preset records a different work-area size.
+// Returns [] for any parse failure or empty input.  Pure geometry, no
+// shell imports — unit-testable with plain gjs.
+//
+// JSON shape: {"wa":{"width":N,"height":N},"rects":[{"x":N,...},...]}
+// wa is optional (scale 1.0 when absent); rects is a mandatory array.
+export function parsePreset(json, currentWa) {
+    if (!json)
+        return [];
+    let preset;
+    try {
+        preset = JSON.parse(json);
+    } catch (e) {
+        return [];
+    }
+    if (!preset || !Array.isArray(preset.rects))
+        return [];
+
+    let sw = 1, sh = 1;
+    if (preset.wa && preset.wa.width > 0 && preset.wa.height > 0 &&
+        currentWa && currentWa.width > 0 && currentWa.height > 0) {
+        sw = currentWa.width / preset.wa.width;
+        sh = currentWa.height / preset.wa.height;
+    }
+
+    const out = [];
+    for (const r of preset.rects) {
+        if (r && r.width > 0 && r.height > 0) {
+            out.push({
+                x: Math.round((r.x || 0) * sw),
+                y: Math.round((r.y || 0) * sh),
+                width: Math.round(r.width * sw),
+                height: Math.round(r.height * sh),
+            });
+        }
+    }
+    return out;
 }
 
 // floatRect(workArea) -- the "restore" rectangle: a centered floating

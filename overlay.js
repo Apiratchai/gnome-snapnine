@@ -1,23 +1,26 @@
-// overlay.js -- experimental interactive layout overlay.
+// overlay.js -- interactive layout overlay.
 //
 // Shows saved window positions (or captured positions) on the focused
 // window's monitor as clickable cells.  Two modes:
 //
-//   'pick'    — cells are clickable; clicking snaps the focused window
-//               to that position.  Arrow keys navigate, Enter picks,
-//               numpad 1–9 (or main keyboard 1–9) select directly.
+//   'pick'    — batch mode: Tab cycles the target window, click / numpad
+//               1–9 / arrows+Enter snap the target into a cell.  The
+//               overlay stays open; auto-closes after every window on the
+//               monitor has a cell.  Overlapping cells show a popup menu.
+//               A hint bar at the bottom lists the shortcuts.
 //   'capture' — cells are visual-only; three slot buttons at the bottom
 //               let the user save the positions to a preset.
 //
-// Escape or right-click cancels/dismisses either mode.
-//
-// BRANCH-ONLY PROTOTYPE.  Likely to bloat and break; the mainline
-// extension does not include this.
+// Escape / right-click cancels/dismisses either mode.
 
 import Clutter from 'gi://Clutter';
+import Meta from 'gi://Meta';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as Util from 'resource:///org/gnome/shell/misc/util.js';
+
+import {hitTest} from './rect.js';
 
 // Map numpad key symbols (both NumLock states) to 0-based cell indices.
 // Numpad physical layout:
@@ -43,25 +46,60 @@ export class LayoutOverlay {
     // rects     — array of {x, y, width, height} relative to the work area
     // mode      — 'pick' | 'capture'
     // title     — optional label shown at the top (e.g., "Preset 2")
-    // onPick    — called with absolute target rect when cell selected (pick mode)
+    // onPick    — called with (window, absTarget) when a cell is picked (pick mode)
     // onSlot    — called with index (0/1/2) when save slot chosen (capture mode)
     // onDestroy — called after the overlay is cleaned up
-    constructor(rects, mode, title, onPick, onSlot, onDestroy) {
+    // slotInfo  — optional [3] of strings shown on the save buttons
+    //             (capture mode), e.g. "empty" or "4 windows"
+    constructor(rects, mode, title, onPick, onSlot, onDestroy, slotInfo) {
         this._mode = mode;
         this._onPick = onPick;
         this._onSlot = onSlot;
         this._onDestroy = onDestroy;
+        this._slotInfo = slotInfo;
         this._destroyed = false;
         this._cells = [];
         this._focusIndex = -1;
+        this._outline = null;
 
         if (!rects || rects.length === 0)
             return;
 
         const window = global.display.focus_window;
-        if (!window)
+        if (!window) {
+            log('snapnine: overlay cannot show without a focused window');
             return;
+        }
         this._wa = window.get_work_area_for_monitor(window.get_monitor());
+
+        // Pick mode: enumerate windows for Tab-cycling and auto-close.
+        this._windows = [];
+        this._targetIndex = 0;
+        this._snapCount = 0;
+        this._maxSnaps = 0;
+        if (mode === 'pick') {
+            const monitor = window.get_monitor();
+            const activeWs = global.workspace_manager.get_active_workspace_index();
+            const wins = [];
+            for (const actor of global.get_window_actors()) {
+                const w = actor.meta_window;
+                if (!w || !w.mapped || w.minimized || w.get_monitor() !== monitor)
+                    continue;
+                if (w.get_workspace().index() !== activeWs)
+                    continue;
+                if (w.get_window_type() !== Meta.WindowType.NORMAL)
+                    continue;
+                if (w.is_skip_taskbar())
+                    continue;
+                if (w === window)
+                    continue;
+                wins.push(w);
+            }
+            // Focused window first.
+            this._windows = [window, ...wins];
+            this._targetIndex = 0;
+            this._maxSnaps = Math.min(this._windows.length, rects.length);
+        }
 
         this._container = new St.Widget({
             x: this._wa.x,
@@ -71,6 +109,11 @@ export class LayoutOverlay {
             style_class: 'snapnine-layout-overlay',
             reactive: true,
         });
+        // The overlay colors are tuned for a dark shell theme; mark
+        // the container when the theme background is light so the CSS
+        // can switch to dark-on-light colors.
+        if (!Util.isDarkBackground())
+            this._container.add_style_class_name('snapnine-light');
         this._container.set_layout_manager(new Clutter.BinLayout());
 
         if (title) {
@@ -102,12 +145,25 @@ export class LayoutOverlay {
             });
             const target = {x: r.x, y: r.y, width: r.width, height: r.height};
 
-            if (mode === 'pick') {
-                cell.connect('clicked', () => this._pick(target));
-            }
             cell.connect('button-press-event', (w, event) => {
-                if (event.get_button() === 3) {
+                const btn = event.get_button();
+                if (btn === 3) {
                     this.destroy();
+                    return Clutter.EVENT_STOP;
+                }
+                // Left-click in pick mode: hit-test against all cells
+                // so overlapping slots show a popup.
+                if (btn === 1 && mode === 'pick') {
+                    const [sx, sy] = event.get_coords();
+                    const cx = sx - this._wa.x;
+                    const cy = sy - this._wa.y;
+                    const targets = this._cells.map(c => c.target);
+                    const hits = hitTest({x: cx, y: cy}, targets);
+                    if (hits.length === 1) {
+                        this._pick(targets[hits[0]]);
+                    } else if (hits.length > 1) {
+                        this._showOverlapPopup(hits, sx, sy);
+                    }
                     return Clutter.EVENT_STOP;
                 }
                 return Clutter.EVENT_PROPAGATE;
@@ -121,16 +177,44 @@ export class LayoutOverlay {
         if (mode === 'pick' && this._cells.length > 0)
             this._setFocus(0);
 
+        // Hint bar visible in pick mode at the bottom of the overlay.
+        if (mode === 'pick') {
+            const hint = new St.Label({
+                text: 'Tab: next window · 1-9/click: place · Esc: close',
+                x: 12,
+                y: this._wa.height - 36,
+                style_class: 'snapnine-layout-hint',
+            });
+            this._container.add_child(hint);
+        }
+
         // In capture mode, add save-slot buttons at the bottom.
         if (mode === 'capture')
             this._addSlotButtons();
+
+        // Outline around the current target window (pick mode only).
+        // Tab cycles the target; the outline follows it so the user can
+        // see which window the next pick will move.  Added last so it
+        // stacks above the cells.
+        if (mode === 'pick') {
+            this._outline = new St.Widget({
+                style_class: 'snapnine-layout-target-outline',
+                reactive: false,
+            });
+            this._container.add_child(this._outline);
+            this._updateOutline();
+        }
 
         // Keyboard handling.
         this._container.connect('key-press-event', (w, event) => {
             const sym = event.get_key_symbol();
 
-            // Escape always cancels.
+            // Escape: dismiss popup if open, otherwise cancel overlay.
             if (sym === Clutter.KEY_Escape) {
+                if (this._popup) {
+                    this._dismissPopup();
+                    return Clutter.EVENT_STOP;
+                }
                 this.destroy();
                 return Clutter.EVENT_STOP;
             }
@@ -156,6 +240,12 @@ export class LayoutOverlay {
             }
 
             // --- pick mode keyboard handling ---
+
+            // Tab: cycle the target window.
+            if (sym === Clutter.KEY_Tab || sym === Clutter.KEY_ISO_Left_Tab) {
+                this._cycleWindow();
+                return Clutter.EVENT_STOP;
+            }
 
             // Numpad: direct cell selection (1–9, either NumLock state).
             const npIdx = _NUMPAD_TO_INDEX[sym];
@@ -202,10 +292,15 @@ export class LayoutOverlay {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        // Right-click on the container background also cancels.
+        // Clicks on the container background: dismiss popup or cancel.
         this._container.connect('button-press-event', (w, event) => {
             if (event.get_button() === 3) {
                 this.destroy();
+                return Clutter.EVENT_STOP;
+            }
+            // Left-click on background (not a cell): dismiss popup if open.
+            if (event.get_button() === 1 && this._popup) {
+                this._dismissPopup();
                 return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
@@ -219,16 +314,13 @@ export class LayoutOverlay {
 
     _setFocus(index) {
         if (this._focusIndex >= 0 && this._focusIndex < this._cells.length) {
-            const old = this._cells[this._focusIndex].button;
-            old.style_class = old.style_class.replace(
-                ' snapnine-layout-cell-focused', '');
+            this._cells[this._focusIndex].button
+                .remove_style_class_name('snapnine-layout-cell-focused');
         }
         this._focusIndex = index;
-        if (index >= 0 && index < this._cells.length) {
-            const btn = this._cells[index].button;
-            if (!btn.style_class.includes('snapnine-layout-cell-focused'))
-                btn.style_class += ' snapnine-layout-cell-focused';
-        }
+        if (index >= 0 && index < this._cells.length)
+            this._cells[index].button
+                .add_style_class_name('snapnine-layout-cell-focused');
     }
 
     // Find the nearest cell in direction (dx, dy).  dx = 1 means right,
@@ -274,19 +366,20 @@ export class LayoutOverlay {
     // -- slot buttons (capture mode) --------------------------------------
 
     _addSlotButtons() {
-        const btnW = 120;
+        const btnW = 160;
         const gap = 10;
         const barW = 3 * btnW + 2 * gap;
         const barX = Math.floor((this._wa.width - barW) / 2);
         const barY = this._wa.height - 52;
 
         for (let i = 0; i < 3; i++) {
+            const info = this._slotInfo?.[i];
             const btn = new St.Button({
                 x: barX + i * (btnW + gap),
                 y: barY,
                 width: btnW,
                 height: 36,
-                label: `Preset ${i + 1}`,
+                label: info ? `Preset ${i + 1} (${info})` : `Preset ${i + 1}`,
                 style_class: 'snapnine-layout-slot-btn',
                 can_focus: false,
             });
@@ -297,10 +390,73 @@ export class LayoutOverlay {
     }
 
     _saveSlot(index) {
-        // Save first; if the callback throws, the overlay stays up.
-        if (this._onSlot)
-            this._onSlot(index);
+        // Save first; if the callback throws, the overlay stays up so
+        // the user can retry.  The error is logged, not silent.
+        try {
+            if (this._onSlot)
+                this._onSlot(index);
+        } catch (e) {
+            log(`snapnine: save preset ${index + 1} failed: ${e.message}`);
+            return;
+        }
         this.destroy();
+    }
+
+    // -- overlap popup (pick mode) ---------------------------------------
+
+    // When a click hits several overlapping cells, show a small vertical
+    // menu listing them so the user can pick one.  Escape / right-click
+    // dismisses the popup (overlay stays open).
+    _showOverlapPopup(indices, sx, sy) {
+        if (this._popup)
+            this._popup.destroy();
+
+        const box = new St.BoxLayout({
+            vertical: true,
+            style_class: 'snapnine-layout-popup',
+        });
+
+        for (const idx of indices) {
+            const label = idx < 9 ? String(idx + 1) : `Cell ${idx + 1}`;
+            const btn = new St.Button({
+                label,
+                style_class: 'snapnine-layout-popup-btn',
+                can_focus: false,
+            });
+            btn.connect('clicked', () => {
+                this._pick(this._cells[idx].target);
+                this._dismissPopup();
+            });
+            box.add_child(btn);
+        }
+
+        // Clamp to container bounds.
+        const px = Math.max(4, Math.min(sx - this._wa.x, this._wa.width - 120));
+        const py = Math.max(4, Math.min(sy - this._wa.y, this._wa.height - 120));
+        box.set_position(px, py);
+
+        // Clicking outside the popup dismisses it.
+        box.connect('button-press-event', (w, event) => {
+            if (event.get_button() === 3) {
+                this._dismissPopup();
+                return Clutter.EVENT_STOP;
+            }
+            // Left-click on a popup button is handled by the child
+            // button's clicked signal (above).  Click on the box
+            // background itself dismisses.
+            this._dismissPopup();
+            return Clutter.EVENT_STOP;
+        });
+
+        this._container.add_child(box);
+        this._popup = box;
+    }
+
+    _dismissPopup() {
+        if (this._popup) {
+            this._popup.destroy();
+            this._popup = null;
+        }
     }
 
     // -- pick mode --------------------------------------------------------
@@ -314,10 +470,48 @@ export class LayoutOverlay {
             width: target.width,
             height: target.height,
         };
-        const onPick = this._onPick;
-        this.destroy();
-        if (onPick)
-            onPick(abs);
+        const window = this._windows[this._targetIndex];
+        if (this._onPick && window)
+            this._onPick(window, abs);
+        this._updateOutline();
+
+        this._snapCount++;
+        if (this._snapCount >= this._maxSnaps)
+            this.destroy();
+    }
+
+    // -- batch mode (pick mode) ------------------------------------------
+
+    // Reposition the outline around the current target window.
+    _updateOutline() {
+        if (!this._outline)
+            return;
+        const w = this._windows[this._targetIndex];
+        if (!w || !w.mapped || w.get_monitor() === -1) {
+            this._outline.hide();
+            return;
+        }
+        const r = w.get_frame_rect();
+        this._outline.set_position(r.x - this._wa.x, r.y - this._wa.y);
+        this._outline.set_size(r.width, r.height);
+        this._outline.show();
+    }
+
+    // Cycle the target window forward (Tab) or backward (Shift+Tab).
+    _cycleWindow() {
+        if (this._windows.length <= 1)
+            return;
+        this._targetIndex = (this._targetIndex + 1) % this._windows.length;
+        // Skip windows that disappeared since enumeration.
+        for (let tries = 0; tries < this._windows.length; tries++) {
+            const w = this._windows[this._targetIndex];
+            if (w && w.mapped && !w.minimized) {
+                w.activate(global.get_current_time());
+                this._updateOutline();
+                return;
+            }
+            this._targetIndex = (this._targetIndex + 1) % this._windows.length;
+        }
     }
 
     // -- cleanup ----------------------------------------------------------
@@ -326,12 +520,14 @@ export class LayoutOverlay {
         if (this._destroyed)
             return;
         this._destroyed = true;
+        this._dismissPopup();
         if (this._container) {
             this._container.destroy();
             this._container = null;
         }
         this._cells = [];
         this._focusIndex = -1;
+        this._outline = null;
         if (this._onDestroy)
             this._onDestroy();
     }

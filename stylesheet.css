@@ -1,4 +1,9 @@
-/* snapnine layout overlay -- branch prototype */
+/* snapnine layout overlay */
+
+/* Colors are tuned for a dark shell theme.  When the shell theme
+   background is light, overlay.js adds the 'snapnine-light' marker
+   class to the container and the overrides at the bottom apply. */
+
 .snapnine-layout-title {
     font-size: 18px;
     font-weight: bold;
@@ -27,6 +32,11 @@
     background-color: rgba(255, 255, 255, 0.35);
     border-width: 3px;
 }
+.snapnine-layout-target-outline {
+    border: 3px solid #ffb000;
+    border-radius: 6px;
+    background-color: transparent;
+}
 .snapnine-layout-capture-cell {
     border: 2px solid rgba(100, 180, 255, 0.70);
     border-radius: 6px;
@@ -46,4 +56,91 @@
 }
 .snapnine-layout-slot-btn:hover {
     background-color: rgba(255, 255, 255, 0.30);
+}
+
+/* overlap popup: shown when click hits multiple stacked cells */
+.snapnine-layout-popup {
+    background-color: rgba(0, 0, 0, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.50);
+    border-radius: 8px;
+    padding: 4px;
+}
+.snapnine-layout-popup-btn {
+    background-color: rgba(255, 255, 255, 0.10);
+    border: none;
+    border-radius: 4px;
+    padding: 6px 24px;
+    margin: 2px;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.90);
+}
+.snapnine-layout-popup-btn:hover {
+    background-color: rgba(255, 255, 255, 0.30);
+}
+
+/* hint bar shown in pick (batch) mode at the bottom */
+.snapnine-layout-hint {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.70);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.35);
+    border-radius: 8px;
+    padding: 6px 14px;
+}
+
+/* ---- light shell theme overrides ---- */
+
+.snapnine-light {
+    background-color: rgba(255, 255, 255, 0.30);
+}
+.snapnine-light .snapnine-layout-title {
+    color: rgba(0, 0, 0, 0.80);
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.6);
+}
+.snapnine-light .snapnine-layout-cell {
+    border-color: rgba(0, 0, 0, 0.45);
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.85);
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.7);
+}
+.snapnine-light .snapnine-layout-cell:hover {
+    background-color: rgba(0, 0, 0, 0.18);
+    border-color: rgba(0, 0, 0, 0.75);
+}
+.snapnine-light .snapnine-layout-cell-focused {
+    border-color: rgba(0, 0, 0, 0.85);
+    background-color: rgba(0, 0, 0, 0.22);
+}
+.snapnine-light .snapnine-layout-target-outline {
+    border-color: #b07000;
+}
+.snapnine-light .snapnine-layout-capture-cell {
+    border-color: rgba(30, 90, 180, 0.75);
+    background-color: rgba(30, 90, 180, 0.15);
+    color: rgba(0, 0, 0, 0.85);
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.7);
+}
+.snapnine-light .snapnine-layout-slot-btn {
+    background-color: rgba(0, 0, 0, 0.10);
+    border-color: rgba(0, 0, 0, 0.45);
+    color: rgba(0, 0, 0, 0.85);
+}
+.snapnine-light .snapnine-layout-slot-btn:hover {
+    background-color: rgba(0, 0, 0, 0.20);
+}
+.snapnine-light .snapnine-layout-hint {
+    color: rgba(0, 0, 0, 0.70);
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+    background-color: rgba(255, 255, 255, 0.35);
+}
+.snapnine-light .snapnine-layout-popup {
+    background-color: rgba(255, 255, 255, 0.92);
+    border-color: rgba(0, 0, 0, 0.40);
+}
+.snapnine-light .snapnine-layout-popup-btn {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.85);
+}
+.snapnine-light .snapnine-layout-popup-btn:hover {
+    background-color: rgba(0, 0, 0, 0.15);
 }

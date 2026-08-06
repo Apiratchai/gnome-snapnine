@@ -8,28 +8,32 @@
 
 import Adw from 'gi://Adw?version=1';
 import Gdk from 'gi://Gdk?version=4.0';
+import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk?version=4.0';
 
 import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
-// [settings key, human name]
+import {parsePreset} from './rect.js';
+
+// [settings key, human name] -- ordered like the numpad so the list
+// reads spatially: top-left, top, top-right, left, center, right, ...
 const ACTIONS = [
-    ['snap-left', 'Snap to left half'],
-    ['snap-right', 'Snap to right half'],
-    ['snap-up', 'Snap to top half'],
-    ['snap-down', 'Snap to bottom half'],
-    ['snap-top-left', 'Snap to top-left quarter'],
-    ['snap-top-right', 'Snap to top-right quarter'],
-    ['snap-bottom-left', 'Snap to bottom-left quarter'],
-    ['snap-bottom-right', 'Snap to bottom-right quarter'],
+    ['snap-top-left', 'Top-left quarter'],
+    ['snap-up', 'Top half'],
+    ['snap-top-right', 'Top-right quarter'],
+    ['snap-left', 'Left half'],
     ['snap-maximize', 'Maximize'],
+    ['snap-right', 'Right half'],
+    ['snap-bottom-left', 'Bottom-left quarter'],
+    ['snap-down', 'Bottom half'],
+    ['snap-bottom-right', 'Bottom-right quarter'],
     ['snap-restore', 'Restore / float centered'],
     ['snap-minimize', 'Minimize'],
     ['snap-layout-1', 'Activate layout preset 1'],
     ['snap-layout-2', 'Activate layout preset 2'],
     ['snap-layout-3', 'Activate layout preset 3'],
-    ['snap-capture-layout', 'Capture layout (save window positions)'],
+    ['snap-capture-layout', 'Capture layout'],
 ];
 
 // One row: action name + a button showing the current shortcut.
@@ -60,19 +64,32 @@ class ShortcutRow extends Adw.ActionRow {
         }
     }
 
-    // Popover that grabs the next keypress.
+    // Popover that grabs the next keypress.  A status label gives
+    // feedback ("Added: <key>") before the popover closes, so the
+    // result of the capture is visible instead of a bare popdown.
     _capture() {
-        const popover = new Gtk.Popover({
-            child: new Gtk.Label({
-                label: 'Press new shortcut — Esc cancels, Backspace removes the last one',
-                margin_top: 12,
-                margin_bottom: 12,
-                margin_start: 12,
-                margin_end: 12,
-            }),
+        const status = new Gtk.Label({
+            label: 'Press a shortcut — Esc cancels, Backspace removes the last',
+            margin_top: 12,
+            margin_bottom: 12,
+            margin_start: 12,
+            margin_end: 12,
         });
+        const popover = new Gtk.Popover({child: status});
         popover.set_parent(this._button);
         popover.popup();
+
+        // Close after feedback; a second keypress supersedes the wait.
+        let closeTimer = 0;
+        const closeSoon = () => {
+            if (closeTimer)
+                GLib.source_remove(closeTimer);
+            closeTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                closeTimer = 0;
+                popover.popdown();
+                return GLib.SOURCE_REMOVE;
+            });
+        };
 
         const controller = new Gtk.EventControllerKey();
         popover.add_controller(controller);
@@ -85,7 +102,8 @@ class ShortcutRow extends Adw.ActionRow {
                 // Remove the last accelerator, keep the rest.
                 const accels = this._settings.get_strv(this._key);
                 this._settings.set_strv(this._key, accels.slice(0, -1));
-                popover.popdown();
+                status.label = 'Removed the last shortcut';
+                closeSoon();
                 return true;
             }
             // Only accept real shortcuts (a modifier or a function key).
@@ -96,11 +114,20 @@ class ShortcutRow extends Adw.ActionRow {
                 const accels = this._settings.get_strv(this._key);
                 if (!accels.includes(accel))
                     this._settings.set_strv(this._key, [...accels, accel]);
-                popover.popdown();
+                status.label = `Added: ${accel}`;
+                closeSoon();
+            } else {
+                status.label = 'Not a shortcut — press a modifier combo';
             }
             return true;
         });
-        popover.connect('closed', () => popover.unparent());
+        popover.connect('closed', () => {
+            if (closeTimer) {
+                GLib.source_remove(closeTimer);
+                closeTimer = 0;
+            }
+            popover.unparent();
+        });
     }
 });
 
@@ -123,22 +150,23 @@ class PresetStatusRow extends Adw.ActionRow {
             sensitive: false,
         });
         clearBtn.connect('clicked', () => {
-            this._settings.set_strv(this._key, []);
+            this._settings.set_string(this._key, '');
             this._update();
         });
         this.add_suffix(clearBtn);
 
         settings.connect(`changed::${key}`, () => {
             this._update();
-            clearBtn.sensitive = this._settings.get_strv(this._key).length > 0;
+            const json = this._settings.get_string(this._key);
+            clearBtn.sensitive = json !== '';
         });
 
         // Set initial clear button sensitivity.
-        clearBtn.sensitive = this._settings.get_strv(this._key).length > 0;
+        clearBtn.sensitive = this._settings.get_string(this._key) !== '';
     }
 
     _update() {
-        const count = this._settings.get_strv(this._key).length;
+        const count = parsePreset(this._settings.get_string(this._key)).length;
         this._label.label = count
             ? `${count} position${count > 1 ? 's' : ''}`
             : 'empty';
@@ -150,11 +178,20 @@ export default class SnapninePrefs extends ExtensionPreferences {
         const settings = this.getSettings();
         const group = new Adw.PreferencesGroup({
             title: 'Snap positions',
-            description: 'Each action has its own shortcut. ' +
-                'Pressing a position key again restores the previous geometry.\n\n' +
-                'Note: numpad keys may show alternate names (e.g., KP_2 as KP_Down) ' +
-                'depending on NumLock state — the binding works correctly regardless.',
+            description: 'Pressing a position key again restores the previous geometry.',
         });
+
+        // Numpad hint: a monospace mini-numpad so the spatial layout
+        // reads at a glance.  The rows below follow the same order.
+        const hintRow = new Adw.ActionRow({title: 'Numpad layout'});
+        const hintLabel = new Gtk.Label({
+            label: '7 8 9\n4 5 6\n1 2 3',
+            css_classes: ['monospace'],
+            halign: Gtk.Align.START,
+        });
+        hintRow.add_suffix(hintLabel);
+        hintRow.subtitle = 'bind any keys — the layout is just the default';
+        group.add(hintRow);
 
         for (const [key, title] of ACTIONS) {
             const row = new ShortcutRow(settings, key, title);
@@ -164,9 +201,7 @@ export default class SnapninePrefs extends ExtensionPreferences {
 
         const presetGroup = new Adw.PreferencesGroup({
             title: 'Layout presets',
-            description: 'Arrange windows on screen, then press the capture ' +
-                'shortcut to save their positions.  Press the layout shortcut ' +
-                'to apply a saved preset.',
+            description: 'Capture saves the window arrangement, a layout key applies it.',
         });
         for (let i = 1; i <= 3; i++) {
             const key = `layout-preset-${i}`;
