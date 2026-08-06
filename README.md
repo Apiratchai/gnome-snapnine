@@ -40,18 +40,26 @@ of the captured positions.
 ![Demo](assets/demo.gif)
 
 1. Arrange windows on screen however you like
-2. Press **capture** (bind `snap-capture-layout` in settings) — the overlay
-   shows every visible window position as a numbered cell
-3. Click **Preset 1/2/3** (or press 1/2/3) to save
-4. Press your bound **layout key** (`snap-layout-1/2/3`) — saved positions
-   appear as numbered clickable cells
-5. Click a cell, press its number (1–9), or navigate with **arrow keys +
-   Enter** — the focused window snaps there
+2. Press the capture shortcut (`snap-capture-layout`, default `Super+Shift+g`).
+   The overlay shows every visible window position as a numbered cell.
+3. Click **Preset 1**, **Preset 2**, or **Preset 3** (or press 1, 2, 3) to save.
+4. Press one of the layout keys (`snap-layout-1/2/3`) to show a saved preset.
+   Cells are numbered and the first cell is highlighted.
+5. Click a cell, press its number (1-9 on the numpad or main keyboard),
+   or navigate with arrow keys and Enter. The focused window snaps to that position.
 
 ![Settings](assets/extension-settings.png)
 
-The three layout presets and the capture shortcut have **no default
-keybindings** — bind them in Extensions → snapnine → Settings.
+The three layout keys have no default bindings. Set them in
+Extensions > snapnine > Settings. The presets and capture shortcut are also
+there.
+
+| Action | Schema key | Default |
+|---|---|---|
+| Capture layout | `snap-capture-layout` | `Super+Shift+g` |
+| Activate preset 1 | `snap-layout-1` | none (bind one) |
+| Activate preset 2 | `snap-layout-2` | none (bind one) |
+| Activate preset 3 | `snap-layout-3` | none (bind one) |
 
 ## Why this exists
 
