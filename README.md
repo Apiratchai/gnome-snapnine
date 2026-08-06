@@ -28,38 +28,52 @@ prefs dialog; the tests then cover it.
 | maximize          | Super+Up, Super+KP_5           |
 | restore (float)   | Super+Down                     |
 | minimize          | Super+h                        |
+| layout preset 1   | Super+Shift+1                  |
+| layout preset 2   | Super+Shift+2                  |
+| layout preset 3   | Super+Shift+3                  |
+| capture layout    | Super+Shift+g                  |
 
 Rebind everything in the settings dialog or with gsettings. Pressing a
 position key again restores the previous geometry.
 
-## Layout overlay (experimental)
+## Layout overlay
 
-Save your window arrangement as a preset, then snap any window into one
-of the captured positions.
+Save your window arrangement as a preset, then place each window into a
+captured position — one cell at a time, across several windows.
 
 ![Demo](assets/demo.gif)
 
-1. Arrange windows on screen however you like
-2. Press the capture shortcut (`snap-capture-layout`, default `Super+Shift+g`).
+### Capture (save a layout)
+
+1. Arrange windows on screen however you like.
+2. Press the capture shortcut (`Super+Shift+g`).
    The overlay shows every visible window position as a numbered cell.
 3. Click **Preset 1**, **Preset 2**, or **Preset 3** (or press 1, 2, 3) to save.
-4. Press one of the layout keys (`snap-layout-1/2/3`) to show a saved preset.
-   Cells are numbered and the first cell is highlighted.
-5. Click a cell, press its number (1-9 on the numpad or main keyboard),
-   or navigate with arrow keys and Enter. The focused window snaps to that position.
+
+### Apply (place windows into a saved layout)
+
+1. Press one of the layout keys (`Super+Shift+1/2/3`).
+   The overlay opens on the focused window's monitor with numbered cells.
+2. **Tab** cycles which window you are placing (the focused window gets a
+   yellow outline). Click a cell, press its number (1-9 on numpad or main
+   keyboard), or navigate with arrow keys and Enter. The target window
+   snaps to that position and the overlay stays open for the next window.
+3. The overlay **auto-closes** after every visible window has a cell.
+   Press **Escape** or right-click to cancel at any time.
+4. If two windows overlap in the captured layout, clicking the shared area
+   shows a small **popup menu** listing both slots — pick the one you want.
 
 ![Settings](assets/extension-settings.png)
 
-The three layout keys have no default bindings. Set them in
-Extensions > snapnine > Settings. The presets and capture shortcut are also
-there.
+Super+Shift+1/2/3 are the defaults. Rebind them in
+Extensions > snapnine > Settings.
 
 | Action | Schema key | Default |
 |---|---|---|
 | Capture layout | `snap-capture-layout` | `Super+Shift+g` |
-| Activate preset 1 | `snap-layout-1` | none (bind one) |
-| Activate preset 2 | `snap-layout-2` | none (bind one) |
-| Activate preset 3 | `snap-layout-3` | none (bind one) |
+| Activate preset 1 | `snap-layout-1` | `Super+Shift+1` |
+| Activate preset 2 | `snap-layout-2` | `Super+Shift+2` |
+| Activate preset 3 | `snap-layout-3` | `Super+Shift+3` |
 
 ## Why this exists
 
@@ -96,7 +110,7 @@ The window always ends up where you told it to go.
   for $0.361. Keeping it alive since has cost several times that, and
   counting. Building to just work is cheap; maintaining is pricier.
   I am not a maintainer and do not plan to be. Expect rough edges.
-- There is a test suite to compensate: 28 geometry unit tests (plain
+- There is a test suite to compensate: 53 geometry unit tests (plain
   gjs) and a live suite that drives real windows over D-Bus and
   presses real keys through uinput. Run `make unit` and `make live`.
 - Tested on GNOME Shell 50.3 / mutter 50.3, Wayland, Fedora.
@@ -109,7 +123,7 @@ source.
 ### Way 1: release zip (recommended)
 
 1. Download the zip:
-   https://github.com/Apiratchai/gnome-snapnine/releases/download/v11/snapnine.zip
+   https://github.com/Apiratchai/gnome-snapnine/releases/download/v13/snapnine.zip
 2. Install it:
 
        gnome-extensions install snapnine.zip
@@ -205,6 +219,9 @@ The live test suite (tests/test.sh) drives the same interface.
 - GNOME 50 offers no API to inject key presses from outside the
   shell, so the suite drives a uinput virtual keyboard instead
   (tests/inject.py).
+- Layout presets are stored as JSON strings.  Old presets saved with
+  earlier versions (branch prototype) use a different format and do not
+  carry over — re-capture them after upgrading.
 
 ## Testing
 
@@ -239,6 +256,7 @@ Both are credited to tiling-assistant by Leleat; see NOTICE.
 
 ## Scope
 
-- Tested on GNOME Shell 50.3, mutter 50.3, Wayland, Fedora, single
-  monitor.
+- Tested on GNOME Shell 50.3, mutter 50.3, Wayland, Fedora.
 - GNOME 51 and multi-monitor setups are not yet verified.
+- Layout overlay (capture, presets, batch mode) tested on single-monitor
+  GNOME 50.
