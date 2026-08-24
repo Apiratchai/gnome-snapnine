@@ -5,18 +5,16 @@
 // Shows saved window positions (or captured positions) on the focused
 // window's monitor as clickable cells.  Two modes:
 //
-//   'pick'    — batch mode: Tab cycles the target window, click / numpad
-//               1–9 / arrows+Enter snap the target into a cell.  The
-//               overlay stays open; auto-closes after every window on the
-//               monitor has a cell.  Overlapping cells show a popup menu.
-//               A hint bar at the bottom lists the shortcuts.
+//   'pick'    — one-shot apply: click / numpad 1–9 / arrows+Enter snap
+//               the focused window into a cell, then the overlay closes.
+//               Overlapping cells show a popup menu.  A hint bar at the
+//               bottom lists the shortcuts.
 //   'capture' — cells are visual-only; three slot buttons at the bottom
 //               let the user save the positions to a preset.
 //
 // Escape / right-click cancels/dismisses either mode.
 
 import Clutter from 'gi://Clutter';
-import Meta from 'gi://Meta';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -62,7 +60,11 @@ export class LayoutOverlay {
         this._grab = null;
         this._cells = [];
         this._focusIndex = -1;
-        this._outline = null;
+        // Last input method wins: keyboard keeps the focus highlight and
+        // suppresses the mouse hover; pointer motion hides the focus
+        // highlight.  The focus index is kept either way, so Enter after
+        // mouse motion still places the focused cell.
+        this._inputMode = null;
 
         if (!rects || rects.length === 0)
             return;
@@ -73,35 +75,8 @@ export class LayoutOverlay {
             return;
         }
         this._wa = window.get_work_area_for_monitor(window.get_monitor());
-
-        // Pick mode: enumerate windows for Tab-cycling and auto-close.
-        this._windows = [];
-        this._targetIndex = 0;
-        this._snapCount = 0;
-        this._maxSnaps = 0;
-        if (mode === 'pick') {
-            const monitor = window.get_monitor();
-            const activeWs = global.workspace_manager.get_active_workspace_index();
-            const wins = [];
-            for (const actor of global.get_window_actors()) {
-                const w = actor.meta_window;
-                if (!w || !w.mapped || w.minimized || w.get_monitor() !== monitor)
-                    continue;
-                if (w.get_workspace().index() !== activeWs)
-                    continue;
-                if (w.get_window_type() !== Meta.WindowType.NORMAL)
-                    continue;
-                if (w.is_skip_taskbar())
-                    continue;
-                if (w === window)
-                    continue;
-                wins.push(w);
-            }
-            // Focused window first.
-            this._windows = [window, ...wins];
-            this._targetIndex = 0;
-            this._maxSnaps = Math.min(this._windows.length, rects.length);
-        }
+        // Pick mode: the focused window is the one that gets placed.
+        this._targetWindow = window;
 
         this._container = new St.Widget({
             x: this._wa.x,
@@ -148,6 +123,7 @@ export class LayoutOverlay {
             const target = {x: r.x, y: r.y, width: r.width, height: r.height};
 
             cell.connect('button-press-event', (w, event) => {
+                this._setInputMode('pointer');
                 const btn = event.get_button();
                 if (btn === 3) {
                     this.destroy();
@@ -170,11 +146,16 @@ export class LayoutOverlay {
                 }
                 return Clutter.EVENT_PROPAGATE;
             });
+            // Any pointer entry over a cell switches to mouse mode.
+            cell.connect('enter-event', () => this._setInputMode('pointer'));
             this._container.add_child(cell);
             this._cells.push({button: cell, target});
             i++;
         }
 
+        // Start in keyboard mode: the overlay opens from a keyboard
+        // shortcut, so the focus highlight is what the user sees first.
+        this._setInputMode('keyboard');
         // Initial focus highlight on the first cell (pick mode only).
         if (mode === 'pick' && this._cells.length > 0)
             this._setFocus(0);
@@ -182,7 +163,7 @@ export class LayoutOverlay {
         // Hint bar visible in pick mode at the bottom of the overlay.
         if (mode === 'pick') {
             const hint = new St.Label({
-                text: 'Tab: next window · 1-9/click: place · Esc: close',
+                text: '1-9/click: place · arrows+Enter: select · Esc: close',
                 x: 12,
                 y: this._wa.height - 36,
                 style_class: 'snapnine-layout-hint',
@@ -201,19 +182,6 @@ export class LayoutOverlay {
         // In capture mode, add save-slot buttons at the bottom.
         if (mode === 'capture')
             this._addSlotButtons();
-
-        // Outline around the current target window (pick mode only).
-        // Tab cycles the target; the outline follows it so the user can
-        // see which window the next pick will move.  Added last so it
-        // stacks above the cells.
-        if (mode === 'pick') {
-            this._outline = new St.Widget({
-                style_class: 'snapnine-layout-target-outline',
-                reactive: false,
-            });
-            this._container.add_child(this._outline);
-            this._updateOutline();
-        }
 
         // Keyboard handling.
         this._container.connect('key-press-event', (w, event) => {
@@ -251,11 +219,9 @@ export class LayoutOverlay {
 
             // --- pick mode keyboard handling ---
 
-            // Tab: cycle the target window.
-            if (sym === Clutter.KEY_Tab || sym === Clutter.KEY_ISO_Left_Tab) {
-                this._cycleWindow();
-                return Clutter.EVENT_STOP;
-            }
+            // Any handled key switches to keyboard mode (drops the
+            // mouse hover highlight, restores the focus highlight).
+            this._setInputMode('keyboard');
 
             // Numpad: direct cell selection (1–9, either NumLock state).
             const npIdx = _NUMPAD_TO_INDEX[sym];
@@ -302,6 +268,10 @@ export class LayoutOverlay {
             return Clutter.EVENT_PROPAGATE;
         });
 
+        // Pointer entering the overlay area switches to mouse mode.
+        this._container.connect('enter-event',
+            () => this._setInputMode('pointer'));
+
         // Clicks on the container background: dismiss popup or cancel.
         this._container.connect('button-press-event', (w, event) => {
             if (event.get_button() === 3) {
@@ -318,9 +288,8 @@ export class LayoutOverlay {
 
         Main.uiGroup.add_child(this._container);
 
-        // Position numbers on their own top layer, added after the outline
-        // so nothing (cell borders, focus highlights, target outline) is
-        // drawn over them.  Each number is sized to its content and
+        // Position numbers on their own top layer, added last so
+        // nothing (cell borders, focus highlights) is drawn over them.  Each number is sized to its content and
         // centered on its cell; St.Label's x/y alignment does not work in
         // this shell, so centering is done by positioning.  Not reactive,
         // so clicks still reach the cells below.
@@ -381,15 +350,33 @@ export class LayoutOverlay {
 
     // -- focus navigation (pick mode) ------------------------------------
 
-    _setFocus(index) {
-        if (this._focusIndex >= 0 && this._focusIndex < this._cells.length) {
+    // Switch between keyboard and mouse highlight modes.  Only one
+    // highlight is ever visible: keyboard mode shows the focus
+    // highlight and turns hover tracking off; mouse mode allows the
+    // :hover highlight and hides the focus class (the focus index is
+    // kept, so Enter after mouse motion still places the focused cell).
+    _setInputMode(mode) {
+        if (this._inputMode === mode)
+            return;
+        this._inputMode = mode;
+        for (const cell of this._cells)
+            cell.button.track_hover = mode === 'pointer';
+        this._applyFocusHighlight();
+    }
+
+    _applyFocusHighlight() {
+        for (const cell of this._cells)
+            cell.button.remove_style_class_name('snapnine-layout-cell-focused');
+        if (this._inputMode === 'keyboard' &&
+            this._focusIndex >= 0 && this._focusIndex < this._cells.length) {
             this._cells[this._focusIndex].button
-                .remove_style_class_name('snapnine-layout-cell-focused');
-        }
-        this._focusIndex = index;
-        if (index >= 0 && index < this._cells.length)
-            this._cells[index].button
                 .add_style_class_name('snapnine-layout-cell-focused');
+        }
+    }
+
+    _setFocus(index) {
+        this._focusIndex = index;
+        this._applyFocusHighlight();
     }
 
     // Find the nearest cell in direction (dx, dy).  dx = 1 means right,
@@ -477,6 +464,11 @@ export class LayoutOverlay {
     // menu listing them so the user can pick one.  Escape / right-click
     // dismisses the popup (overlay stays open).
     _showOverlapPopup(indices, sx, sy) {
+        // A new popup must not inherit stale highlights: the previous
+        // popup's items are destroyed without leave events, so their
+        // cells would keep the popup-hl class otherwise.
+        for (const cell of this._cells)
+            cell.button.remove_style_class_name('snapnine-layout-popup-hl');
         if (this._popup)
             this._popup.destroy();
 
@@ -508,6 +500,7 @@ export class LayoutOverlay {
             // Hovering an item highlights its cell so it is obvious which
             // overlapping slot the number refers to.
             item.connect('enter-event', () => {
+                this._setInputMode('pointer');
                 this._cells[idx].button
                     .add_style_class_name('snapnine-layout-popup-hl');
             });
@@ -568,48 +561,12 @@ export class LayoutOverlay {
             width: target.width,
             height: target.height,
         };
-        const window = this._windows[this._targetIndex];
+        const window = this._targetWindow;
         if (this._onPick && window)
             this._onPick(window, abs);
-        this._updateOutline();
 
-        this._snapCount++;
-        if (this._snapCount >= this._maxSnaps)
-            this.destroy();
-    }
-
-    // -- batch mode (pick mode) ------------------------------------------
-
-    // Reposition the outline around the current target window.
-    _updateOutline() {
-        if (!this._outline)
-            return;
-        const w = this._windows[this._targetIndex];
-        if (!w || !w.mapped || w.get_monitor() === -1) {
-            this._outline.hide();
-            return;
-        }
-        const r = w.get_frame_rect();
-        this._outline.set_position(r.x - this._wa.x, r.y - this._wa.y);
-        this._outline.set_size(r.width, r.height);
-        this._outline.show();
-    }
-
-    // Cycle the target window forward (Tab) or backward (Shift+Tab).
-    _cycleWindow() {
-        if (this._windows.length <= 1)
-            return;
-        this._targetIndex = (this._targetIndex + 1) % this._windows.length;
-        // Skip windows that disappeared since enumeration.
-        for (let tries = 0; tries < this._windows.length; tries++) {
-            const w = this._windows[this._targetIndex];
-            if (w && w.mapped && !w.minimized) {
-                w.activate(global.get_current_time());
-                this._updateOutline();
-                return;
-            }
-            this._targetIndex = (this._targetIndex + 1) % this._windows.length;
-        }
+        // One-shot: close after placing the focused window.
+        this.destroy();
     }
 
     // -- cleanup ----------------------------------------------------------
@@ -629,7 +586,6 @@ export class LayoutOverlay {
         }
         this._cells = [];
         this._focusIndex = -1;
-        this._outline = null;
         if (this._onDestroy)
             this._onDestroy();
     }
