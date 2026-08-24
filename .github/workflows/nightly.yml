@@ -23,6 +23,9 @@ jobs:
         with:
           name: snapnine
 
+      - name: rename
+        run: mv snapnine.zip snapnine-nightly.zip
+
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -32,4 +35,6 @@ jobs:
             || gh release create nightly \
                  --prerelease --title nightly \
                  --notes "Automated build of the nightly branch."
-          gh release upload nightly snapnine.zip --clobber
+          # drop the pre-rename asset so it does not linger
+          gh release delete-asset nightly snapnine.zip --yes 2>/dev/null || true
+          gh release upload nightly snapnine-nightly.zip --clobber
