@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Shared pipeline: unit tests, syntax check, zip.  Reused by nightly
+# and release via workflow_call.
+name: ci
+on:
+  push:
+  pull_request:
+  workflow_call:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install gjs
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gjs
+
+      - name: unit
+        run: make unit
+
+      - name: syntax
+        run: |
+          for f in *.js; do
+            cp "$f" "/tmp/${f%.js}.mjs"
+            node --check "/tmp/${f%.js}.mjs"
+          done
+
+      - name: zip
+        run: make zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: snapnine
+          path: snapnine.zip

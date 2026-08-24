@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Rolling prerelease: every push to nightly rebuilds the zip and moves
+# the nightly tag forward.  Manual dispatch for convenience.
+name: nightly
+on:
+  push:
+    branches: [nightly]
+  workflow_dispatch:
+
+jobs:
+  build:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: snapnine
+
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view nightly >/dev/null 2>&1 \
+            || gh release create nightly \
+                 --prerelease --title nightly \
+                 --notes "Automated build of the nightly branch."
+          gh release upload nightly snapnine.zip --clobber
