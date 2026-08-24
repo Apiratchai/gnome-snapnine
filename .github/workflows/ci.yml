@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Shared pipeline: unit tests, syntax check, zip.  Reused by nightly
-# and release via workflow_call.
+# and release via workflow_call.  Nightly pushes skip this file; their
+# build runs inside nightly.yml instead.
 name: ci
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_call:
 
