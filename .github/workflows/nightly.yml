@@ -31,10 +31,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release view nightly >/dev/null 2>&1 \
-            || gh release create nightly \
+          # Tag is "rolling", not "nightly": a tag sharing the branch
+          # name makes local ref resolution ambiguous, and it should
+          # mark the exact commit this zip was built from anyway.
+          gh release view rolling >/dev/null 2>&1 \
+            || gh release create rolling \
+                 --target "$GITHUB_SHA" \
                  --prerelease --title nightly \
                  --notes "Automated build of the nightly branch."
           # drop the pre-rename asset so it does not linger
-          gh release delete-asset nightly snapnine.zip --yes 2>/dev/null || true
-          gh release upload nightly snapnine-nightly.zip --clobber
+          gh release delete-asset rolling snapnine.zip --yes 2>/dev/null || true
+          gh release upload rolling snapnine-nightly.zip --clobber
