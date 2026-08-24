@@ -6,7 +6,7 @@
 //
 // Exits non-zero on any failure.
 
-import {POSITIONS, isPosition, rect, eq, floatRect, gridRect, hitTest, overlappingPairs, parsePreset} from '../rect.js';
+import {POSITIONS, isPosition, rect, eq, near, floatRect, gridRect, hitTest, overlappingPairs, parsePreset} from '../rect.js';
 import system from 'system';
 
 let pass = 0;
@@ -163,6 +163,26 @@ check('parsePreset malformed', parsePreset('not json').length === 0);
 check('parsePreset no rects', parsePreset('{"wa":{"width":1920,"height":1052}}').length === 0);
 check('parsePreset skips zero-size rect',
     parsePreset('{"rects":[{"x":0,"y":0,"width":0,"height":100},{"x":0,"y":0,"width":100,"height":100}]}').length === 1);
+
+// near(): approximate equality used by the watcher and toggle-restore.
+const NB = {x: 0, y: 0, width: 960, height: 1052};
+check('near identical', near(NB, {x: 0, y: 0, width: 960, height: 1052}));
+check('near size within tolerance',
+    near(NB, {x: 0, y: 0, width: 951, height: 1035}));
+check('near size beyond tolerance',
+    !near(NB, {x: 0, y: 0, width: 935, height: 1052}));
+check('near position within tolerance',
+    near(NB, {x: 3, y: -3, width: 960, height: 1052}));
+check('near position beyond tolerance',
+    !near(NB, {x: 10, y: 0, width: 960, height: 1052}));
+check('near custom tolerances',
+    near({x: 0, y: 0, width: 100, height: 100},
+         {x: 8, y: 0, width: 100, height: 100}, 10) &&
+    !near({x: 0, y: 0, width: 100, height: 100},
+          {x: 8, y: 0, width: 100, height: 100}, 4));
+check('near terminal-like constrained size',
+    near({x: 0, y: 28, width: 952, height: 1040},
+         {x: 0, y: 28, width: 960, height: 1052}));
 
 print('');
 print(`${pass} passed, ${fail} failed`);

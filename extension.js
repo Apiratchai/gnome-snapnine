@@ -29,7 +29,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
-import {POSITIONS, isPosition, rect, eq, floatRect, parsePreset} from './rect.js';
+import {POSITIONS, isPosition, rect, near, floatRect, parsePreset} from './rect.js';
 import {LayoutOverlay} from './overlay.js';
 
 const MINIMIZE = 'minimize';
@@ -112,10 +112,16 @@ export default class SnapnineExtension extends Extension {
         this._exported = false;
         this._settleTimers = new Map();   // window -> pending settle timer id
         this._watchers = new Map();       // window -> size watcher id
+        this._snapGen = new Map();        // window -> current snap generation
         this._createdAt = new WeakMap();  // window -> creation time
         this._builtinSettingsCache = null;
         this._createdId = global.display.connect('window-created',
             (_display, window) => this._createdAt.set(window, Date.now()));
+
+        // Stand down on grabs: the tick-time is_grabbed() check misses
+        // short drags.
+        this._grabId = global.display.connect('grab-op-begin',
+            (_display, window) => this._standDown(window));
 
         // Load the overlay stylesheet (widgets reference its classes).
         this._theme = St.ThemeContext.get_for_stage(global.stage).get_theme();
@@ -146,6 +152,10 @@ export default class SnapnineExtension extends Extension {
             global.display.disconnect(this._createdId);
             this._createdId = 0;
         }
+        if (this._grabId) {
+            global.display.disconnect(this._grabId);
+            this._grabId = 0;
+        }
         this._builtinSettingsCache = null;
         for (const id of this._settleTimers.values())
             GLib.source_remove(id);
@@ -153,6 +163,7 @@ export default class SnapnineExtension extends Extension {
         for (const id of this._watchers.values())
             GLib.source_remove(id);
         this._watchers.clear();
+        this._snapGen.clear();
         if (this._overlay)
             this._overlay.destroy();
         if (this._stylesheet && this._theme) {
@@ -355,8 +366,9 @@ export default class SnapnineExtension extends Extension {
         const target = rect(position, workArea);
         const current = window.get_frame_rect();
 
-        // Already there: restore the geometry saved on the first snap.
-        if (eq(current, target)) {
+        // Already there (within tolerance): restore the geometry
+        // saved on the first snap.
+        if (near(current, target)) {
             const previous = this._previous.get(window);
             if (previous) {
                 window.unmaximize();
@@ -371,6 +383,23 @@ export default class SnapnineExtension extends Extension {
         });
         window.unmaximize();
         this._applySnap(window, target);
+    }
+
+    // Cancel every pending timer for a window (grab started).
+    _standDown(window) {
+        if (!window)
+            return;
+        const w = this._watchers.get(window);
+        if (w) {
+            GLib.source_remove(w);
+            this._watchers.delete(window);
+        }
+        const s = this._settleTimers.get(window);
+        if (s) {
+            GLib.source_remove(s);
+            this._settleTimers.delete(window);
+        }
+        this._snapGen.delete(window);
     }
 
     // Freshly created windows race their initial placement: mutter
@@ -393,6 +422,10 @@ export default class SnapnineExtension extends Extension {
     // exposed to extensions, so we emulate it: watch the window and
     // re-assert the target rect until it holds, then stand down.
     _applySnap(window, target) {
+        // A new snap supersedes the previous verify, so a stale one
+        // never yanks the window back mid-alternation.
+        const gen = (this._snapGen.get(window) ?? 0) + 1;
+        this._snapGen.set(window, gen);
         const apply = () => {
             // A window mid-unmap/remap has no monitor; moving a
             // window in that state crashes mutter (mutter #1600,
@@ -412,20 +445,28 @@ export default class SnapnineExtension extends Extension {
                                          target.width, target.height);
             };
             move();
-            // Verify and retry once: catches windows that ignore the
-            // request entirely (reproduced here with zenity dialogs)
-            // and the partial resize their older code saw with CSD
-            // clients.  Same target, so a retry is harmless.
-            const r = window.get_frame_rect();
-            if (r.x !== target.x || r.y !== target.y ||
-                r.width !== target.width || r.height !== target.height)
-                move();
+            // Delayed, tolerance-aware verify: an immediate read on
+            // Wayland nearly always sees stale coordinates.
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 80, safe(() => {
+                if (this._snapGen.get(window) !== gen)
+                    return GLib.SOURCE_REMOVE;
+                if (!window.mapped || window.get_monitor() === -1)
+                    return GLib.SOURCE_REMOVE;
+                const r = window.get_frame_rect();
+                if (!near(r, target))
+                    move();
+                return GLib.SOURCE_REMOVE;
+            }));
         };
         const safe = callback => () => {
             try {
                 return callback();
             } catch (e) {
+                // Disposed window; drop its Map entries.
                 log(`snapnine: watcher error: ${e.message}`);
+                this._watchers.delete(window);
+                this._settleTimers.delete(window);
+                this._snapGen.delete(window);
                 return GLib.SOURCE_REMOVE;
             }
         };
@@ -452,8 +493,7 @@ export default class SnapnineExtension extends Extension {
         // the window, their intent wins and we stand down.
         const giveUp = why => {
             const r = window.get_frame_rect();
-            if (r.x !== target.x || r.y !== target.y ||
-                r.width !== target.width || r.height !== target.height)
+            if (!near(r, target))
                 log(`snapnine: watcher gave up (${why}) on ` +
                     `${window.get_title()}: at ${r.x},${r.y} ${r.width}x${r.height}, ` +
                     `target ${target.x},${target.y} ${target.width}x${target.height}`);
@@ -485,8 +525,11 @@ export default class SnapnineExtension extends Extension {
                     }
                     return GLib.SOURCE_CONTINUE;
                 }
-                if (r.x === target.x && r.y === target.y &&
-                    r.width === target.width && r.height === target.height) {
+                // Within tolerance counts as settled; a terminal
+                // constrained by cell increments can never hit the
+                // exact rect.  Far off means ignored or remapped --
+                // keep re-asserting.
+                if (near(r, target)) {
                     if (++stable >= 3) {
                         this._watchers.delete(window);
                         return GLib.SOURCE_REMOVE;
@@ -514,11 +557,10 @@ export default class SnapnineExtension extends Extension {
             return;
         }
 
-        // Fresh window: wait for the initial placement to settle
-        // (two stable reads), then move and watch.
+        // Fresh window: wait for two stable reads, then move and watch.
         let previous = null;
         let ticks = 0;
-        const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, safe(() => {
+        const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, safe(() => {
             const r = window.get_frame_rect();
             const current = `${r.x},${r.y},${r.width},${r.height}`;
             if (previous === current || ++ticks >= 15) {
@@ -739,8 +781,8 @@ export default class SnapnineExtension extends Extension {
     }
 
     // Interactive overlay from saved rects.  In pick mode the overlay
-    // stays open (batch mode): Tab cycles the target window, each pick
-    // snaps it, overlay auto-closes when every window has a cell.
+    // closes after the first pick (one-shot apply): the focused window
+    // is snapped into the chosen cell, then the overlay closes.
     _showOverlay(rects, title) {
         if (!global.display.focus_window) {
             Main.notify('snapnine', 'No focused window to show the layout on.');

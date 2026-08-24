@@ -59,11 +59,22 @@ export function rect(position, wa) {
     return null;
 }
 
-// eq(a, b) -- rectangle equality; used to detect "already snapped",
-// which triggers the restore-previous-geometry behaviour.
+// eq(a, b) -- rectangle equality; used to detect exact matches.
 export function eq(a, b) {
     return a.x === b.x && a.y === b.y &&
            a.width === b.width && a.height === b.height;
+}
+
+// near(a, b, posTol = 4, sizeTol = 24) -- approximate equality.
+//
+// Clients sized in whole cells (terminals) cannot always hit the
+// exact rect; position is held tighter than size because move_frame
+// places it directly.
+export function near(a, b, posTol = 4, sizeTol = 24) {
+    return Math.abs(a.x - b.x) <= posTol &&
+           Math.abs(a.y - b.y) <= posTol &&
+           Math.abs(a.width - b.width) <= sizeTol &&
+           Math.abs(a.height - b.height) <= sizeTol;
 }
 
 // gridRect(workArea, columns, rows, col, row) -- one cell of an
