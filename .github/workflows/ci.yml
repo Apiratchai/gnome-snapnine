@@ -1,19 +1,25 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Shared pipeline: unit tests, syntax check, zip.  Reused by nightly
-# and release via workflow_call.  Nightly pushes skip this file; their
-# build runs inside nightly.yml instead.
+# Shared pipeline: unit tests, syntax check, zip.  Runs on every push
+# and PR; nightly and release reuse it via workflow_call, optionally
+# pinned to a branch with the `ref` input.
 name: ci
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: false
+        default: ''
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || '' }}
 
       - name: install gjs
         run: sudo apt-get update -qq && sudo apt-get install -y -qq gjs

@@ -1,10 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Rolling prerelease: every push to nightly rebuilds the zip and moves
-# the nightly tag forward.  Manual dispatch for convenience.
+# Rolling prerelease, cut on a cadence (daily) or on demand, not on
+# every push: shipping every push is not how release channels behave.
+# Builds the nightly branch head and publishes it as the fixed-name
+# `rolling` prerelease; the tag moves to the built SHA and unchanged
+# nightlies are skipped.
 name: nightly
 on:
-  push:
-    branches: [nightly]
+  schedule:
+    - cron: '0 6 * * *'   # daily, 06:00 UTC
   workflow_dispatch:
 
 # gh release create/upload needs write access.
@@ -14,6 +17,8 @@ permissions:
 jobs:
   build:
     uses: ./.github/workflows/ci.yml
+    with:
+      ref: nightly
 
   publish:
     needs: build
@@ -31,14 +36,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          # Tag is "rolling", not "nightly": a tag sharing the branch
-          # name makes local ref resolution ambiguous, and it should
-          # mark the exact commit this zip was built from anyway.
-          gh release view rolling >/dev/null 2>&1 \
-            || gh release create rolling \
-                 --target "$GITHUB_SHA" \
-                 --prerelease --title nightly \
-                 --notes "Automated build of the nightly branch."
-          # drop the pre-rename asset so it does not linger
-          gh release delete-asset rolling snapnine.zip --yes 2>/dev/null || true
-          gh release upload rolling snapnine-nightly.zip --clobber
+          set -e
+          SHA="$(gh api repos/$GH_REPO/commits/nightly --jq .sha)"
+          LAST="$(gh api repos/$GH_REPO/releases/tags/rolling --jq .target_commitish 2>/dev/null || echo '')"
+          if [ -n "$LAST" ] && [ "$LAST" = "$SHA" ]; then
+            echo "nightly unchanged at ${SHA:0:10}; skipping publish"
+            exit 0
+          fi
+          # Recreate at the nightly head; the fixed release name keeps
+          # the download URL stable while --target moves the tag.
+          gh release delete rolling --cleanup-tag --yes 2>/dev/null || true
+          gh release create rolling --target "$SHA" --prerelease --title nightly \
+            --notes "Automated build of the nightly branch @ ${SHA:0:10}."
+          gh release upload rolling snapnine-nightly.zip
