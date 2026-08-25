@@ -123,6 +123,11 @@ source.
 
 1. Download the zip:
    https://github.com/Apiratchai/gnome-snapnine/releases/download/v13/snapnine.zip
+   
+
+   or Nightly build:
+   https://github.com/Apiratchai/gnome-snapnine/releases/download/rolling/snapnine-nightly.zip
+
 2. Install it:
 
        gnome-extensions install snapnine.zip
