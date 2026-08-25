@@ -50,16 +50,15 @@ captured position — one cell at a time, across several windows.
    The overlay shows every visible window position as a numbered cell.
 3. Click **Preset 1**, **Preset 2**, or **Preset 3** (or press 1, 2, 3) to save.
 
-### Apply (place windows into a saved layout)
+### Apply (place a window into a saved layout)
 
-1. Press one of the layout keys (`Super+Shift+1/2/3`).
+1. Focus the window you want to place.
+2. Press one of the layout keys (`Super+Shift+1/2/3`).
    The overlay opens on the focused window's monitor with numbered cells.
-2. **Tab** cycles which window you are placing (the focused window gets a
-   yellow outline). Click a cell, press its number (1-9 on numpad or main
-   keyboard), or navigate with arrow keys and Enter. The target window
-   snaps to that position and the overlay stays open for the next window.
-3. The overlay **auto-closes** after every visible window has a cell.
-   Press **Escape** or right-click to cancel at any time.
+3. Click a cell, press its number (1-9 on numpad or main keyboard), or
+   navigate with arrow keys and Enter. The focused window snaps to that
+   position and the overlay closes. Press the key again to place the next
+   window, or Escape / right-click to cancel.
 4. If two windows overlap in the captured layout, clicking the shared area
    shows a small **popup menu** listing both slots — pick the one you want.
 
@@ -124,6 +123,11 @@ source.
 
 1. Download the zip:
    https://github.com/Apiratchai/gnome-snapnine/releases/download/v13/snapnine.zip
+   
+
+   or Nightly build:
+   https://github.com/Apiratchai/gnome-snapnine/releases/download/rolling/snapnine-nightly.zip
+
 2. Install it:
 
        gnome-extensions install snapnine.zip
@@ -258,5 +262,5 @@ Both are credited to tiling-assistant by Leleat; see NOTICE.
 
 - Tested on GNOME Shell 50.3, mutter 50.3, Wayland, Fedora.
 - GNOME 51 and multi-monitor setups are not yet verified.
-- Layout overlay (capture, presets, batch mode) tested on single-monitor
+- Layout overlay (capture, presets, one-shot apply) tested on single-monitor
   GNOME 50.
